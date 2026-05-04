@@ -51,14 +51,21 @@ IDE: VSCode / CLion
 
 - CMake 3.31+
 - C++23 编译器 (g++15 / clang 20+ / MSVC 2022+)
-- [vcpkg](https://github.com/microsoft/vcpkg)
+- [vcpkg](https://github.com/microsoft/vcpkg) (管理 ffmpeg / portaudio / gtest)
+- Qt6 通过系统包管理器安装
 
-### 安装 vcpkg 和依赖
+### 安装依赖
 
 ```bash
+# Fedora
+sudo dnf install -y qt6-qtbase-devel qt6-qtwayland nasm
+
+# macOS
+brew install qt@6 nasm
+
+# vcpkg
 git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
-~/vcpkg/bootstrap-vcpkg.sh    # Linux/macOS
-# ~/vcpkg/bootstrap-vcpkg.bat  # Windows
+~/vcpkg/bootstrap-vcpkg.sh
 ```
 
 ### 构建

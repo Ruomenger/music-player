@@ -2,36 +2,6 @@
   "name": "music-player",
   "version": "0.1.0",
   "dependencies": [
-    {
-      "name": "qtbase",
-      "default-features": false,
-      "features": [
-        "brotli",
-        "concurrent",
-        "dbus",
-        "dnslookup",
-        "doubleconversion",
-        "egl",
-        "fontconfig",
-        "freetype",
-        "gui",
-        "harfbuzz",
-        "icu",
-        "jpeg",
-        "network",
-        "opengl",
-        "openssl",
-        "pcre2",
-        "png",
-        "sessionmanager",
-        "sql",
-        "sql-sqlite",
-        "thread",
-        "wayland",
-        "widgets",
-        "zstd"
-      ]
-    },
     "ffmpeg",
     "portaudio",
     "gtest"

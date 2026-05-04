@@ -2,7 +2,7 @@
 
 ## 概述
 
-所有第三方依赖通过 vcpkg manifest mode 统一管理，包括 Qt6。不使用系统包管理器安装的 Qt。
+所有第三方依赖(除 Qt6 外)通过 vcpkg manifest mode 统一管理。Qt6 使用系统包管理器安装以保证工具链兼容性。
 
 ## vcpkg 配置
 
@@ -13,16 +13,6 @@
   "name": "music-player",
   "version": "0.1.0",
   "dependencies": [
-    {
-      "name": "qtbase",
-      "default-features": false,
-      "features": [
-        "concurrent", "dbus", "egl", "fontconfig",
-        "freetype", "gui", "harfbuzz", "jpeg",
-        "network", "opengl", "png", "sql", "sql-sqlite",
-        "thread", "wayland", "widgets", "zstd"
-      ]
-    },
     "ffmpeg",
     "portaudio",
     "gtest"
@@ -30,19 +20,22 @@
 }
 ```
 
-> 注意: Linux 上显式禁用 X11 相关 feature (`xcb`, `xcb-sm`, `xcb-xlib`, `xrender`)，启用 `wayland`。macOS/Windows 上这些 feature 自动被平台条件过滤，无需额外处理。
+> Qt6 使用系统包管理器安装 (dnf/brew)，不纳入 vcpkg 管理。vcpkg 仅管理 ffmpeg / portaudio / gtest。
 
 ### 系统依赖 (Linux)
 
-vcpkg 会从源码编译大多数依赖，但部分库需要系统提供开发包:
-
 ```bash
-# Fedora
-sudo dnf install -y nasm wayland-devel wayland-protocols-devel libxkbcommon-devel
+# Qt6 开发包 (通过系统包管理器)
+sudo dnf install -y qt6-qtbase-devel qt6-qtwayland
 
-# Ubuntu/Debian
-sudo apt install -y nasm libwayland-dev wayland-protocols libxkbcommon-dev
+# vcpkg 编译时需要
+sudo dnf install -y nasm
+
+# Wayland 支持 (系统 Qt 的 Wayland 平台插件运行时使用)
+sudo dnf install -y wayland-devel wayland-protocols-devel libxkbcommon-devel
 ```
+
+> macOS 用户用 `brew install qt@6`。Windows 用户可通过官方 Qt 在线安装器，或统一用 vcpkg。
 
 ### Triplet 选择
 
