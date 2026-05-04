@@ -20,7 +20,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(cmake/CompilerWarnings.cmake)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Sql)
-find_package(FFMPEG REQUIRED)
+find_package(FFmpeg REQUIRED COMPONENTS AVCODEC AVFORMAT AVUTIL SWRESAMPLE)
 find_package(PortAudio REQUIRED)
 
 if(BUILD_TESTING)

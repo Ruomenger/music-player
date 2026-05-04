@@ -57,30 +57,36 @@ IDE: VSCode / CLion
 ### 安装依赖
 
 ```bash
-# Fedora
-sudo dnf install -y qt6-qtbase-devel qt6-qtwayland portaudio-devel nasm
+# Fedora (x64 Linux)
+sudo dnf install -y qt6-qtbase-devel qt6-qtwayland portaudio-devel nasm ninja-build
 
-# macOS
-brew install qt@6 nasm
+# macOS (Apple Silicon)
+brew install qt portaudio nasm ninja
 
-# vcpkg
+# vcpkg (两平台通用，路径默认 ~/vcpkg)
 git clone https://github.com/microsoft/vcpkg.git ~/vcpkg
 ~/vcpkg/bootstrap-vcpkg.sh
 ```
 
-### 构建
+### 构建（CMake Presets）
+
+项目通过 `CMakePresets.json` 提供平台预设，无需手填 triplet：
 
 ```bash
-cmake -B build \
-  -DCMAKE_TOOLCHAIN_FILE=~/vcpkg/scripts/buildsystems/vcpkg.cmake \
-  -DVCPKG_TARGET_TRIPLET=x64-linux \
-  -DCMAKE_BUILD_TYPE=Release
+# Linux x64
+cmake --preset linux-x64-debug
+cmake --build --preset linux-x64-debug
 
-cmake --build build
+# macOS arm64
+cmake --preset macos-arm64-debug
+cmake --build --preset macos-arm64-debug
 ```
 
-> macOS M2 用户请将 `VCPKG_TARGET_TRIPLET` 设为 `arm64-osx`。
-> Windows 用户请设为 `x64-windows`。
+可用预设：`linux-x64-{debug,release}`、`macos-arm64-{debug,release}`。
+查看当前平台可用预设：`cmake --list-presets`。
+
+> 切换 preset 前请先清理：`rm -rf build`（所有 preset 共用 `build/` 目录）。
+> 如果 vcpkg 不在 `~/vcpkg`，可通过环境变量覆盖：`VCPKG_ROOT=/path/to/vcpkg cmake --preset ...`，或在配置时用 `-DCMAKE_TOOLCHAIN_FILE=...` 覆盖。
 
 ### 运行
 
@@ -91,9 +97,9 @@ cmake --build build
 ### 运行测试
 
 ```bash
-cmake --build build --target test
+ctest --preset linux-x64-debug      # 或 macos-arm64-debug
 # 或
-ctest --test-dir build
+ctest --test-dir build --output-on-failure
 ```
 
 ## 项目结构
