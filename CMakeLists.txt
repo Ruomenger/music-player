@@ -18,7 +18,7 @@ option(BUILD_TESTING "Build tests" ON)
 include(cmake/CompilerWarnings.cmake)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Sql)
-find_package(FFmpeg REQUIRED COMPONENTS avcodec avformat avutil swresample)
+find_package(FFMPEG REQUIRED)
 find_package(portaudio REQUIRED)
 
 if(BUILD_TESTING)

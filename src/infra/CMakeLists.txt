@@ -8,13 +8,12 @@ add_library(musicplayer_infra STATIC
 )
 
 target_include_directories(musicplayer_infra PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(musicplayer_infra PUBLIC ${FFMPEG_INCLUDE_DIRS})
+
 target_link_libraries(musicplayer_infra PUBLIC
     musicplayer_domain
     Qt6::Core
     Qt6::Sql
-    FFmpeg::avcodec
-    FFmpeg::avformat
-    FFmpeg::avutil
-    FFmpeg::swresample
+    ${FFMPEG_LIBRARIES}
     portaudio
 )
