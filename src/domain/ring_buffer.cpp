@@ -3,10 +3,7 @@
 namespace musicplayer {
 
 template<typename T>
-RingBuffer<T>::RingBuffer(size_t capacity)
-    : buffer_(capacity)
-    , mask_(capacity - 1) {
-}
+RingBuffer<T>::RingBuffer(size_t capacity) : buffer_(capacity), mask_(capacity - 1) {}
 
 template<typename T>
 size_t RingBuffer<T>::write(const T* data, size_t count) {
@@ -45,4 +42,4 @@ size_t RingBuffer<T>::available() const {
 
 template class RingBuffer<float>;
 
-} // namespace musicplayer
+}  // namespace musicplayer

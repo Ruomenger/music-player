@@ -15,4 +15,4 @@ public:
     static std::vector<LyricLine> parse(const std::string& content);
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

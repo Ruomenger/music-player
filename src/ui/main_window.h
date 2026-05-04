@@ -10,4 +10,4 @@ public:
     explicit MainWindow(QWidget* parent = nullptr);
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

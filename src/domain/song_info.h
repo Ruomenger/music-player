@@ -17,11 +17,6 @@ struct SongInfo {
     bool hasLyric = false;
 };
 
-enum class PlayMode {
-    Single,
-    Sequential,
-    ListLoop,
-    Random
-};
+enum class PlayMode { Single, Sequential, ListLoop, Random };
 
-} // namespace musicplayer
+}  // namespace musicplayer

@@ -10,4 +10,4 @@ public:
     explicit CoverWidget(QWidget* parent = nullptr);
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

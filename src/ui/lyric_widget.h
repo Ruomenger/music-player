@@ -10,4 +10,4 @@ public:
     explicit LyricWidget(QWidget* parent = nullptr);
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

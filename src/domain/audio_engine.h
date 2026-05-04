@@ -16,4 +16,4 @@ private:
     // Phase 1 implementation
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

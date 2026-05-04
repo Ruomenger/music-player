@@ -1,8 +1,8 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
-#include <optional>
 #include "song_info.h"
 
 namespace musicplayer {
@@ -16,4 +16,4 @@ public:
     bool removeSong(int id);
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

@@ -7,4 +7,4 @@ public:
     // Phase 2 implementation
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

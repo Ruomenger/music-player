@@ -17,6 +17,7 @@
     ],
     "C_Cpp.intelliSenseEngine": "disabled",
     "cmake.configureOnOpen": false,
+    "editor.formatOnSave": true,
   "files.watcherExclude": {
     "**/build/**": true,
     "**/vcpkg_installed/**": true

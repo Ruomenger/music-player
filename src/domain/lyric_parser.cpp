@@ -6,4 +6,4 @@ std::vector<LyricLine> LyricParser::parse(const std::string& /*content*/) {
     return {};
 }
 
-} // namespace musicplayer
+}  // namespace musicplayer

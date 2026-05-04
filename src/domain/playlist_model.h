@@ -16,4 +16,4 @@ private:
     std::vector<SongInfo> songs_;
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

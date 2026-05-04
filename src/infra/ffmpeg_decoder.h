@@ -23,4 +23,4 @@ private:
     AudioDecoderInfo info_;
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

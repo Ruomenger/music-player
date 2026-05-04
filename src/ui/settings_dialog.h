@@ -10,4 +10,4 @@ public:
     explicit SettingsDialog(QWidget* parent = nullptr);
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

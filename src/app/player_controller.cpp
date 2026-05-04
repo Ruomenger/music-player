@@ -2,8 +2,6 @@
 
 namespace musicplayer {
 
-PlayerController::PlayerController(QObject* parent)
-    : QObject(parent) {
-}
+PlayerController::PlayerController(QObject* parent) : QObject(parent) {}
 
-} // namespace musicplayer
+}  // namespace musicplayer

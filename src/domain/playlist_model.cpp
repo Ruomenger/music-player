@@ -16,4 +16,4 @@ const std::vector<SongInfo>& PlaylistModel::songs() const {
     return songs_;
 }
 
-} // namespace musicplayer
+}  // namespace musicplayer

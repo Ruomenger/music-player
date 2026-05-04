@@ -23,4 +23,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

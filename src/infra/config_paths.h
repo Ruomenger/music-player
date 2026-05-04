@@ -11,4 +11,4 @@ public:
     static std::string cacheDir();
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

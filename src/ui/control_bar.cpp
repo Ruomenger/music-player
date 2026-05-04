@@ -2,8 +2,6 @@
 
 namespace musicplayer {
 
-ControlBar::ControlBar(QWidget* parent)
-    : QWidget(parent) {
-}
+ControlBar::ControlBar(QWidget* parent) : QWidget(parent) {}
 
-} // namespace musicplayer
+}  // namespace musicplayer

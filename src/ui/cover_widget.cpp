@@ -2,8 +2,6 @@
 
 namespace musicplayer {
 
-CoverWidget::CoverWidget(QWidget* parent)
-    : QWidget(parent) {
-}
+CoverWidget::CoverWidget(QWidget* parent) : QWidget(parent) {}
 
-} // namespace musicplayer
+}  // namespace musicplayer

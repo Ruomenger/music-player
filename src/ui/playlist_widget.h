@@ -10,4 +10,4 @@ public:
     explicit PlaylistWidget(QWidget* parent = nullptr);
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

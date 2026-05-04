@@ -14,4 +14,4 @@ signals:
     void positionChanged(double current, double total);
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer

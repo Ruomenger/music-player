@@ -22,4 +22,4 @@ private:
     size_t mask_;
 };
 
-} // namespace musicplayer
+}  // namespace musicplayer
