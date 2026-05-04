@@ -1,0 +1,48 @@
+# Build directories
+build/
+cmake-build-*/
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Compiled files
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# Qt generated files
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+*.qm
+
+# vcpkg
+vcpkg_installed/
+
+# Test artifacts
+Testing/
+CTestTestfile.cmake
+coverage/
+
+# Packaging
+*.app
+*.dmg
+*.AppImage
+*.flatpak
+*.msi
+*.exe.installer
+
+# Misc
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
