@@ -14,15 +14,34 @@
   "version": "0.1.0",
   "dependencies": [
     {
-      "name": "qt6",
-      "features": ["qtsql"]
+      "name": "qtbase",
+      "default-features": false,
+      "features": [
+        "concurrent", "dbus", "egl", "fontconfig",
+        "freetype", "gui", "harfbuzz", "jpeg",
+        "network", "opengl", "png", "sql", "sql-sqlite",
+        "thread", "wayland", "widgets", "zstd"
+      ]
     },
     "ffmpeg",
     "portaudio",
-    "sqlite3",
     "gtest"
   ]
 }
+```
+
+> 注意: Linux 上显式禁用 X11 相关 feature (`xcb`, `xcb-sm`, `xcb-xlib`, `xrender`)，启用 `wayland`。macOS/Windows 上这些 feature 自动被平台条件过滤，无需额外处理。
+
+### 系统依赖 (Linux)
+
+vcpkg 会从源码编译大多数依赖，但部分库需要系统提供开发包:
+
+```bash
+# Fedora
+sudo dnf install -y nasm wayland-devel wayland-protocols-devel libxkbcommon-devel
+
+# Ubuntu/Debian
+sudo apt install -y nasm libwayland-dev wayland-protocols libxkbcommon-dev
 ```
 
 ### Triplet 选择
@@ -72,6 +91,7 @@ include(cmake/CompilerWarnings.cmake)
 
 # 查找依赖
 find_package(Qt6 COMPONENTS Widgets Sql REQUIRED)
+# vcpkg 的 FFmpeg 提供 FindFFMPEG.cmake (变量模式, 非 target)
 find_package(FFMPEG REQUIRED)
 find_package(portaudio REQUIRED)
 find_package(GTest REQUIRED)

@@ -126,7 +126,8 @@
 
 ## Phase 10: 跨平台验证和打包
 
-- [ ] Fedora 43: 完整编译+运行+测试
+- [ ] Fedora 43 (Wayland): 完整编译+运行+测试 (含系统托盘/通知验证)
+- [ ] Fedora 43 (X11 fallback): Qt 自动回退, 验证无崩溃
 - [ ] macOS 15 M2: 完整编译+运行+测试
 - [ ] Windows: 完整编译+运行+测试
 - [ ] 编写 `docs/build-instructions.md` (各平台构建步骤)
