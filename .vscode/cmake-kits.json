@@ -1,0 +1,19 @@
+[
+  {
+    "name": "MusicPlayer x64-linux",
+    "cmakeSettings": {
+      "CMAKE_TOOLCHAIN_FILE": "$env{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "VCPKG_TARGET_TRIPLET": "x64-linux",
+      "BUILD_TESTING": "ON"
+    }
+  },
+  {
+    "name": "MusicPlayer x64-linux Release",
+    "cmakeSettings": {
+      "CMAKE_TOOLCHAIN_FILE": "$env{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+      "VCPKG_TARGET_TRIPLET": "x64-linux",
+      "CMAKE_BUILD_TYPE": "Release",
+      "BUILD_TESTING": "ON"
+    }
+  }
+]

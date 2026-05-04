@@ -1,0 +1,13 @@
+{
+  "name": "music-player",
+  "version": "0.1.0",
+  "dependencies": [
+    {
+      "name": "qtbase",
+      "default-features": true
+    },
+    "ffmpeg",
+    "portaudio",
+    "gtest"
+  ]
+}

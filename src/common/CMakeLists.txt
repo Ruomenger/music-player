@@ -1,0 +1,3 @@
+add_library(musicplayer_common INTERFACE)
+target_include_directories(musicplayer_common INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(musicplayer_common INTERFACE compiler_warnings)
