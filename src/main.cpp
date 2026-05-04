@@ -33,28 +33,25 @@ int main(int argc, char* argv[]) {
                   << static_cast<int>(info.duration) << "s" << std::endl;
 
         engine.play();
+        std::cout << "Playing..." << std::endl;
 
-        std::cout << "Playing... Press Ctrl+C to stop." << std::endl;
         double lastPos = -1.0;
         while (true) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
             if (engine.state() != musicplayer::AudioEngine::State::Playing)
                 break;
             double pos = engine.currentPosition();
             int posSec = static_cast<int>(pos);
             if (posSec != static_cast<int>(lastPos)) {
                 int durSec = static_cast<int>(info.duration);
-                if (durSec > 0) {
-                    int pct = posSec * 100 / durSec;
-                    std::cout << "\r  [" << posSec / 60 << ":" << (posSec % 60 < 10 ? "0" : "")
-                              << posSec % 60 << " / " << durSec / 60 << ":"
-                              << (durSec % 60 < 10 ? "0" : "") << durSec % 60 << "] " << pct << "%"
-                              << std::flush;
-                }
+                std::cout << "\r  pos=" << pos << " sec [" << posSec / 60 << ":"
+                          << (posSec % 60 < 10 ? "0" : "") << posSec % 60 << " / " << durSec / 60
+                          << ":" << (durSec % 60 < 10 ? "0" : "") << durSec % 60 << "] "
+                          << (durSec > 0 ? posSec * 100 / durSec : 0) << "%" << std::flush;
                 lastPos = pos;
             }
         }
-        std::cout << std::endl << "Playback finished." << std::endl;
+        std::cout << std::endl << "Done." << std::endl;
         std::cout << "Stopped." << std::endl;
         return 0;
     }
