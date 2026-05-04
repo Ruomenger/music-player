@@ -1,8 +1,6 @@
 #include "audio_engine.h"
 
 #include <algorithm>
-#include <cmath>
-#include <cstdint>
 
 namespace musicplayer {
 
@@ -125,7 +123,21 @@ void AudioEngine::seek(double seconds) {
 }
 
 void AudioEngine::decodeLoop() {
+    std::vector<float> pending;
     while (state_.load(std::memory_order_acquire) == State::Playing) {
+        // First, drain any samples carried over from the previous iteration
+        // (would only happen if decode overshoots; current decoder caps strictly).
+        if (!pending.empty()) {
+            size_t written = ringBuffer_.write(pending.data(), pending.size());
+            if (written < pending.size()) {
+                pending.erase(pending.begin(),
+                              pending.begin() + static_cast<ptrdiff_t>(written));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                continue;
+            }
+            pending.clear();
+        }
+
         size_t free = ringBuffer_.freeSlots();
         if (free < kDecodeChunkSize * static_cast<size_t>(info_.channels)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -138,7 +150,10 @@ void AudioEngine::decodeLoop() {
         if (samples.empty()) {
             break;
         }
-        ringBuffer_.write(samples.data(), samples.size());
+        size_t written = ringBuffer_.write(samples.data(), samples.size());
+        if (written < samples.size()) {
+            pending.assign(samples.begin() + static_cast<ptrdiff_t>(written), samples.end());
+        }
     }
 }
 

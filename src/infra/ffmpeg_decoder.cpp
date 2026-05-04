@@ -1,8 +1,5 @@
 #include "ffmpeg_decoder.h"
 
-#include <algorithm>
-#include <cstring>
-
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -133,33 +130,41 @@ std::vector<float> FfmpegDecoder::decode(size_t maxFrames) {
     if (eof_ || !codecCtx_)
         return {};
 
-    std::vector<float> output;
     AVCodecContext* cc = codecCtx_.get();
+    const int channels = cc->ch_layout.nb_channels;
+
+    std::vector<float> output(maxFrames * static_cast<size_t>(channels));
+    size_t framesWritten = 0;
     bool flushed = false;
 
-    while (output.empty() || output.size() / cc->ch_layout.nb_channels < maxFrames) {
+    auto writeOutput = [&](const uint8_t* const* srcData, int srcSamples) {
+        if (framesWritten >= maxFrames)
+            return;
+        const int wanted = static_cast<int>(maxFrames - framesWritten);
+        uint8_t* dst[1] = {
+            reinterpret_cast<uint8_t*>(output.data() + framesWritten * static_cast<size_t>(channels))};
+        int got = swr_convert(swrCtx_.get(), dst, wanted, srcData, srcSamples);
+        if (got > 0)
+            framesWritten += static_cast<size_t>(got);
+    };
+
+    // Drain any samples still buffered inside swr from the previous call
+    // (caused by capping the output last time). Pass nullptr input to flush.
+    while (framesWritten < maxFrames) {
+        const size_t before = framesWritten;
+        writeOutput(nullptr, 0);
+        if (framesWritten == before)
+            break;
+    }
+
+    while (framesWritten < maxFrames) {
         int ret = avcodec_receive_frame(cc, frame_.get());
         if (ret == 0) {
-            int channels = cc->ch_layout.nb_channels;
-            int dstSamples = static_cast<int>(maxFrames) * channels;
-
-            std::vector<float> tmp(static_cast<size_t>(dstSamples));
-            uint8_t* dstData[1] = {reinterpret_cast<uint8_t*>(tmp.data())};
             const uint8_t** srcData = const_cast<const uint8_t**>(frame_->data);
-
-            int samples = swr_convert(swrCtx_.get(), dstData, static_cast<int>(maxFrames), srcData,
-                                      frame_->nb_samples);
-
-            if (samples > 0) {
-                size_t sampleCount = static_cast<size_t>(samples) * channels;
-                output.insert(output.end(), tmp.begin(),
-                              tmp.begin() + static_cast<ptrdiff_t>(sampleCount));
-            }
+            writeOutput(srcData, frame_->nb_samples);
         } else if (ret == AVERROR(EAGAIN)) {
-            if (flushed) {
-                eof_ = true;
+            if (flushed)
                 break;
-            }
             if (av_read_frame(formatCtx_.get(), packet_.get()) < 0) {
                 avcodec_send_packet(cc, nullptr);
                 flushed = true;
@@ -170,11 +175,19 @@ std::vector<float> FfmpegDecoder::decode(size_t maxFrames) {
             }
             av_packet_unref(packet_.get());
         } else {
+            // AVERROR_EOF or fatal: drain swr's remaining output then stop.
+            while (framesWritten < maxFrames) {
+                const size_t before = framesWritten;
+                writeOutput(nullptr, 0);
+                if (framesWritten == before)
+                    break;
+            }
             eof_ = true;
             break;
         }
     }
 
+    output.resize(framesWritten * static_cast<size_t>(channels));
     return output;
 }
 
