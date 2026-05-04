@@ -135,6 +135,7 @@ std::vector<float> FfmpegDecoder::decode(size_t maxFrames) {
 
     std::vector<float> output;
     AVCodecContext* cc = codecCtx_.get();
+    bool flushed = false;
 
     while (output.empty() || output.size() / cc->ch_layout.nb_channels < maxFrames) {
         int ret = avcodec_receive_frame(cc, frame_.get());
@@ -155,8 +156,13 @@ std::vector<float> FfmpegDecoder::decode(size_t maxFrames) {
                               tmp.begin() + static_cast<ptrdiff_t>(sampleCount));
             }
         } else if (ret == AVERROR(EAGAIN)) {
+            if (flushed) {
+                eof_ = true;
+                break;
+            }
             if (av_read_frame(formatCtx_.get(), packet_.get()) < 0) {
                 avcodec_send_packet(cc, nullptr);
+                flushed = true;
                 continue;
             }
             if (packet_->stream_index == streamIndex_) {

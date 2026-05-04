@@ -1,5 +1,5 @@
-#include "ffmpeg_decoder.h"
 #include "audio_engine.h"
+#include "ffmpeg_decoder.h"
 #include "portaudio_output.h"
 #include "ui/main_window.h"
 
@@ -43,9 +43,8 @@ int main(int argc, char* argv[]) {
                 int dur = static_cast<int>(info.duration);
                 int pct = dur > 0 ? posInt * 100 / dur : 0;
                 std::cout << "\r  [" << posInt / 60 << ":" << (posInt % 60 < 10 ? "0" : "")
-                          << posInt % 60 << " / " << dur / 60 << ":"
-                          << (dur % 60 < 10 ? "0" : "") << dur % 60 << "] " << pct << "%"
-                          << std::flush;
+                          << posInt % 60 << " / " << dur / 60 << ":" << (dur % 60 < 10 ? "0" : "")
+                          << dur % 60 << "] " << pct << "%" << std::flush;
                 lastPos = pos;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
