@@ -10,16 +10,16 @@
 
 ## Phase 0: 项目骨架搭建
 
-- [ ] 创建项目目录结构
-- [ ] 编写 `.gitignore`
-- [ ] 编写 `vcpkg.json` manifest, 声明依赖 (qt6, ffmpeg, portaudio, sqlite3, gtest)
-- [ ] 编写顶层 `CMakeLists.txt` (C++23, AUTOMOC, find_package)
-- [ ] 编写 `cmake/CompilerWarnings.cmake` 统一编译警告
-- [ ] 编写 `src/CMakeLists.txt` 及各子目录 CMakeLists
-- [ ] 编写 `tests/CMakeLists.txt` 集成 gtest
-- [ ] 编写 `main.cpp` (空 QApplication + 空 QMainWindow, 显示 "Hello Music Player")
-- [ ] 配置 VSCode `.vscode/cmake-kits.json` 和 `.vscode/settings.json`
-- [ ] 验证: cmake configure + build 通过, 窗口可显示
+- [x] 创建项目目录结构
+- [x] 编写 `.gitignore`
+- [x] 编写 `vcpkg.json` manifest, 声明依赖 (ffmpeg, portaudio, gtest)
+- [x] 编写顶层 `CMakeLists.txt` (C++23, AUTOMOC, find_package)
+- [x] 编写 `cmake/CompilerWarnings.cmake` 统一编译警告
+- [x] 编写 `src/CMakeLists.txt` 及各子目录 CMakeLists
+- [x] 编写 `tests/CMakeLists.txt` 集成 gtest
+- [x] 编写 `main.cpp` (空 QApplication + 空 QMainWindow, 显示窗口)
+- [x] 配置 VSCode `.vscode/cmake-kits.json` 和 `.vscode/settings.json`
+- [x] 验证: cmake configure + build 通过, 窗口可显示
 
 ## Phase 1: 音频引擎核心 (Domain + Infra)
 
