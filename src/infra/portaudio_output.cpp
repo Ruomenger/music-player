@@ -73,13 +73,24 @@ bool PortAudioOutput::open(double sampleRate, int channels) {
 bool PortAudioOutput::start() {
     if (!ctx_->stream)
         return false;
+    if (Pa_IsStreamActive(ctx_->stream) == 1)
+        return true;
     return Pa_StartStream(ctx_->stream) == paNoError;
+}
+
+bool PortAudioOutput::pause() {
+    if (!ctx_->stream)
+        return true;
+    if (Pa_IsStreamActive(ctx_->stream) != 1)
+        return true;
+    return Pa_StopStream(ctx_->stream) == paNoError;
 }
 
 bool PortAudioOutput::stop() {
     if (!ctx_->stream)
         return true;
-    Pa_StopStream(ctx_->stream);
+    if (Pa_IsStreamActive(ctx_->stream) == 1)
+        Pa_StopStream(ctx_->stream);
     Pa_CloseStream(ctx_->stream);
     ctx_->stream = nullptr;
     return true;

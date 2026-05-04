@@ -16,6 +16,7 @@ public:
 
     bool open(double sampleRate, int channels) override;
     bool start() override;
+    bool pause() override;
     bool stop() override;
     void setCallback(DataCallback callback) override;
 

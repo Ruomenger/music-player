@@ -6,7 +6,7 @@
 #include "ring_buffer.h"
 
 #include <atomic>
-#include <chrono>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <thread>
@@ -33,13 +33,14 @@ public:
     void seek(double seconds);
 
     State state() const { return state_.load(std::memory_order_acquire); }
-    double currentPosition() const { return position_.load(std::memory_order_acquire); }
+    double currentPosition() const;
     double duration() const { return info_.duration; }
     const AudioDecoderInfo& info() const { return info_; }
 
 private:
     void decodeLoop();
-    static constexpr double positionPollInterval = 0.25;
+    void startDecodeThread();
+    void stopDecodeThread();
 
     std::unique_ptr<IAudioDecoder> decoder_;
     std::unique_ptr<IAudioOutput> output_;
@@ -48,7 +49,13 @@ private:
 
     std::thread decodeThread_;
     std::atomic<State> state_{State::Stopped};
-    std::atomic<double> position_{0.0};
+    std::atomic<bool> decodeRunning_{false};
+
+    // Position tracking: callback only does fetch_add on framesPlayed_ (true atomic);
+    // seek/start mutate both fields while the stream is paused (no race with callback).
+    // Read side: position = (seekFrameOffset_ + framesPlayed_) / sampleRate.
+    std::atomic<uint64_t> framesPlayed_{0};
+    std::atomic<uint64_t> seekFrameOffset_{0};
 };
 
 }  // namespace musicplayer
