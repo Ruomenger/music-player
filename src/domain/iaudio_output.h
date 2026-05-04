@@ -6,7 +6,7 @@ namespace musicplayer {
 
 class IAudioOutput {
 public:
-    using DataCallback = std::function<int(float* buffer, int frameCount)>;
+    using DataCallback = std::function<void(float* buffer, int frameCount)>;
 
     virtual ~IAudioOutput() = default;
 

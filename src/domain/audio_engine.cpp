@@ -40,10 +40,10 @@ bool AudioEngine::open(const std::string& filePath) {
         return false;
     }
 
-    output_->setCallback([this](float* buffer, int frameCount) -> int {
+    output_->setCallback([this](float* buffer, int frameCount) {
         if (state_.load(std::memory_order_acquire) == State::Paused) {
             std::fill_n(buffer, frameCount * info_.channels, 0.0f);
-            return frameCount;
+            return;
         }
         int totalSamples = frameCount * info_.channels;
         int read = static_cast<int>(ringBuffer_.read(buffer, totalSamples));
@@ -53,7 +53,6 @@ bool AudioEngine::open(const std::string& filePath) {
         position_.store(position_.load(std::memory_order_acquire) +
                             static_cast<double>(frameCount) / info_.sampleRate,
                         std::memory_order_release);
-        return frameCount;
     });
 
     return true;

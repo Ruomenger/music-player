@@ -7,18 +7,12 @@ extern "C" {
 #include <portaudio.h>
 }
 
-namespace musicplayer {
-
-struct PortAudioOutput::Context {
-    PaStream* stream = nullptr;
-};
-
 namespace {
 
 int paCallbackImpl(const void* /*input*/, void* output, unsigned long frameCount,
                    const PaStreamCallbackTimeInfo* /*timeInfo*/,
                    PaStreamCallbackFlags /*statusFlags*/, void* userData) {
-    auto* self = static_cast<PortAudioOutput*>(userData);
+    auto* self = static_cast<musicplayer::PortAudioOutput*>(userData);
     const auto& cb = self->callback();
     if (!cb) {
         auto* out = static_cast<float*>(output);
@@ -26,10 +20,17 @@ int paCallbackImpl(const void* /*input*/, void* output, unsigned long frameCount
         std::fill_n(out, totalSamples, 0.0f);
         return paContinue;
     }
-    return cb(static_cast<float*>(output), static_cast<int>(frameCount));
+    cb(static_cast<float*>(output), static_cast<int>(frameCount));
+    return paContinue;
 }
 
 }  // namespace
+
+namespace musicplayer {
+
+struct PortAudioOutput::Context {
+    PaStream* stream = nullptr;
+};
 
 PortAudioOutput::PortAudioOutput() : ctx_(std::make_unique<Context>()) {
     Pa_Initialize();
