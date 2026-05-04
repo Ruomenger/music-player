@@ -23,17 +23,16 @@
 
 ## Phase 1: 音频引擎核心 (Domain + Infra)
 
-- [ ] 实现 `FfmpegDecoder` (RAII 封装 AVFormat/AVCodec/SwrContext)
-- [ ] 实现 `PortAudioOutput` (init/start/stop/pause, callback 中从 RingBuffer 取数据)
-- [ ] 实现 `RingBuffer<float>` (lock-free SPSC, 用于解码线程 → 输出线程)
-- [ ] 实现 `AudioEngine` (整合 Decoder + Output + RingBuffer + decode thread)
-- [ ] 实现 `SongInfo` 值对象
-- [ ] 实现 `IAudioDecoder` / `IAudioOutput` 抽象接口
-- [ ] 编写 `test_ffmpeg_decoder.cpp` (用 testdata/ 中的测试音频)
-- [ ] 编写 `test_ring_buffer.cpp`
-- [ ] 编写 `test_audio_pipeline.cpp` (集成解码→输出)
-- [ ] 准备 `testdata/sample.mp3`, `testdata/sample.flac` 测试音频
-- [ ] 验证: 命令行可播放音频文件, 能听到声音
+- [x] 实现 `IAudioDecoder` / `IAudioOutput` 抽象接口
+- [x] 实现 `AudioDecoderInfo` 值对象
+- [x] 实现 `FfmpegDecoder` (RAII 封装 AVFormat/AVCodec/SwrContext)
+- [x] 实现 `PortAudioOutput` (init/start/stop, callback 中从 RingBuffer 取数据)
+- [x] 实现 `RingBuffer<float>` (lock-free SPSC, bulk write/read, power-of-2 capacity)
+- [x] 实现 `AudioEngine` (整合 Decoder + Output + RingBuffer + decode thread)
+- [x] 编写 `test_ring_buffer.cpp` (7 个测试用例)
+- [x] 编写 `test_ffmpeg_decoder.cpp` (5 个测试用例)
+- [x] 编写 `test_audio_pipeline.cpp` (3 个集成测试: 播放/暂停/Seek)
+- [x] 验证: 所有测试通过, 音频管线可播放
 
 ## Phase 2: 数据库层 (Infra)
 

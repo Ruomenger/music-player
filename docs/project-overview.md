@@ -11,7 +11,7 @@
 | 语言标准 | C++23 |
 | UI 框架 | Qt 6.10+ (QtWidgets, 纯代码, 不使用 QML/UI 文件) |
 | 构建系统 | CMake 3.31+ |
-| 包管理 | vcpkg (manifest mode, ffmpeg/portaudio/gtest); Qt6 使用系统包管理器 |
+| 包管理 | vcpkg (manifest mode, ffmpeg/gtest); Qt6/PortAudio 使用系统包管理器 |
 | 音频解码 | FFmpeg |
 | 音频输出 | PortAudio |
 | 数据库 | SQLite3 (通过 Qt SQL 模块) |

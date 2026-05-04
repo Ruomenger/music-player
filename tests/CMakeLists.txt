@@ -23,3 +23,16 @@ macro(add_infra_test name)
 endmacro()
 
 add_domain_test(test_lyric_parser)
+add_domain_test(test_ring_buffer)
+
+add_infra_test(test_ffmpeg_decoder)
+
+# Integration tests
+add_executable(test_audio_pipeline integration/test_audio_pipeline.cpp)
+target_link_libraries(test_audio_pipeline PRIVATE
+    musicplayer_domain
+    musicplayer_infra
+    GTest::gtest
+    GTest::gtest_main
+)
+gtest_discover_tests(test_audio_pipeline)

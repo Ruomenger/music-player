@@ -58,7 +58,7 @@ IDE: VSCode / CLion
 
 ```bash
 # Fedora
-sudo dnf install -y qt6-qtbase-devel qt6-qtwayland nasm
+sudo dnf install -y qt6-qtbase-devel qt6-qtwayland portaudio-devel nasm
 
 # macOS
 brew install qt@6 nasm

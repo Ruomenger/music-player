@@ -14,19 +14,18 @@
   "version": "0.1.0",
   "dependencies": [
     "ffmpeg",
-    "portaudio",
     "gtest"
   ]
 }
 ```
 
-> Qt6 使用系统包管理器安装 (dnf/brew)，不纳入 vcpkg 管理。vcpkg 仅管理 ffmpeg / portaudio / gtest。
+> Qt6 和 PortAudio 使用系统包管理器安装，不纳入 vcpkg 管理。vcpkg 仅管理 ffmpeg / gtest。
 
 ### 系统依赖 (Linux)
 
 ```bash
 # Qt6 开发包 (通过系统包管理器)
-sudo dnf install -y qt6-qtbase-devel qt6-qtwayland
+sudo dnf install -y qt6-qtbase-devel qt6-qtwayland portaudio-devel
 
 # vcpkg 编译时需要
 sudo dnf install -y nasm
@@ -86,7 +85,7 @@ include(cmake/CompilerWarnings.cmake)
 find_package(Qt6 COMPONENTS Widgets Sql REQUIRED)
 # vcpkg 的 FFmpeg 提供 FindFFMPEG.cmake (变量模式, 非 target)
 find_package(FFMPEG REQUIRED)
-find_package(portaudio REQUIRED)
+find_package(PortAudio REQUIRED)
 find_package(GTest REQUIRED)
 
 # 子目录
@@ -120,7 +119,7 @@ target_include_directories(musicplayer_infra PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(musicplayer_infra PUBLIC
     musicplayer_domain
     FFMPEG::FFMPEG
-    portaudio
+    PortAudio::PortAudio
     Qt6::Sql
 )
 

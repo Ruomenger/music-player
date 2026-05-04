@@ -1,26 +1,33 @@
 #pragma once
 
-#include <functional>
+#include "iaudio_output.h"
+
 #include <memory>
 
 namespace musicplayer {
 
-class PortAudioOutput {
+class PortAudioOutput : public IAudioOutput {
 public:
-    using DataCallback = std::function<int(float*, int)>;
-
     PortAudioOutput();
-    ~PortAudioOutput();
+    ~PortAudioOutput() override;
 
-    bool init(double sampleRate, int channels);
-    bool start();
-    bool stop();
-    bool pause();
-    void setDataCallback(DataCallback callback);
+    PortAudioOutput(const PortAudioOutput&) = delete;
+    PortAudioOutput& operator=(const PortAudioOutput&) = delete;
+
+    bool open(double sampleRate, int channels) override;
+    bool start() override;
+    bool stop() override;
+    void setCallback(DataCallback callback) override;
+
+    const DataCallback& callback() const { return callback_; }
 
 private:
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
+    struct Context;
+    std::unique_ptr<Context> ctx_;
+    DataCallback callback_;
+    double sampleRate_ = 44100.0;
+    int channels_ = 2;
+    bool initialized_ = false;
 };
 
 }  // namespace musicplayer

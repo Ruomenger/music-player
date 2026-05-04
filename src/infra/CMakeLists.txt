@@ -15,5 +15,5 @@ target_link_libraries(musicplayer_infra PUBLIC
     Qt6::Core
     Qt6::Sql
     ${FFMPEG_LIBRARIES}
-    portaudio_static
+    PortAudio::PortAudio
 )

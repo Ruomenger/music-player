@@ -1,4 +1,7 @@
 add_library(musicplayer_domain STATIC
+    audio_decoder_info.cpp
+    iaudio_decoder.cpp
+    iaudio_output.cpp
     song_info.cpp
     audio_engine.cpp
     lyric_parser.cpp

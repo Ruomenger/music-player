@@ -1,29 +1,45 @@
 #include "ring_buffer.h"
 
+#include <algorithm>
+#include <cstring>
+
 namespace musicplayer {
 
 template<typename T>
-RingBuffer<T>::RingBuffer(size_t capacity) : buffer_(capacity), mask_(capacity - 1) {}
+RingBuffer<T>::RingBuffer(size_t capacity)
+    : buffer_(nextPowerOfTwo(capacity)), mask_(buffer_.size() - 1) {}
 
 template<typename T>
 size_t RingBuffer<T>::write(const T* data, size_t count) {
-    size_t written = 0;
-    while (written < count && available() < buffer_.size()) {
-        buffer_[writeIdx_ & mask_] = data[written];
-        writeIdx_.fetch_add(1, std::memory_order_release);
-        ++written;
-    }
-    return written;
+    size_t free = freeSlots();
+    size_t toWrite = std::min(count, free);
+    if (toWrite == 0)
+        return 0;
+
+    size_t w = writeIdx_.load(std::memory_order_relaxed);
+    size_t firstChunk = std::min(toWrite, buffer_.size() - (w & mask_));
+
+    std::memcpy(&buffer_[w & mask_], data, firstChunk * sizeof(T));
+    std::memcpy(&buffer_[0], data + firstChunk, (toWrite - firstChunk) * sizeof(T));
+
+    writeIdx_.store(w + toWrite, std::memory_order_release);
+    return toWrite;
 }
 
 template<typename T>
 size_t RingBuffer<T>::read(T* data, size_t count) {
     size_t avail = available();
-    size_t toRead = (count < avail) ? count : avail;
-    for (size_t i = 0; i < toRead; ++i) {
-        data[i] = buffer_[(readIdx_ + i) & mask_];
-    }
-    readIdx_.fetch_add(toRead, std::memory_order_release);
+    size_t toRead = std::min(count, avail);
+    if (toRead == 0)
+        return 0;
+
+    size_t r = readIdx_.load(std::memory_order_relaxed);
+    size_t firstChunk = std::min(toRead, buffer_.size() - (r & mask_));
+
+    std::memcpy(data, &buffer_[r & mask_], firstChunk * sizeof(T));
+    std::memcpy(data + firstChunk, &buffer_[0], (toRead - firstChunk) * sizeof(T));
+
+    readIdx_.store(r + toRead, std::memory_order_release);
     return toRead;
 }
 
@@ -38,6 +54,11 @@ size_t RingBuffer<T>::available() const {
     size_t w = writeIdx_.load(std::memory_order_acquire);
     size_t r = readIdx_.load(std::memory_order_acquire);
     return (w >= r) ? (w - r) : (buffer_.size() - r + w);
+}
+
+template<typename T>
+size_t RingBuffer<T>::freeSlots() const {
+    return buffer_.size() - available();
 }
 
 template class RingBuffer<float>;
