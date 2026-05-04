@@ -128,17 +128,17 @@ void AudioEngine::seek(double seconds) {
 void AudioEngine::decodeLoop() {
     while (state_.load(std::memory_order_acquire) == State::Playing) {
         size_t free = ringBuffer_.freeSlots();
-        if (free < kDecodeChunkSize * info_.channels) {
+        if (free < kDecodeChunkSize * static_cast<size_t>(info_.channels)) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
         }
 
-        size_t framesToDecode = std::min(free / info_.channels, kDecodeChunkSize);
+        size_t framesToDecode =
+            std::min(free / static_cast<size_t>(info_.channels), kDecodeChunkSize);
         auto samples = decoder_->decode(framesToDecode);
         if (samples.empty()) {
             break;
         }
-
         ringBuffer_.write(samples.data(), samples.size());
     }
 }

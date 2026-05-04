@@ -22,7 +22,7 @@ int paCallbackImpl(const void* /*input*/, void* output, unsigned long frameCount
     const auto& cb = self->callback();
     if (!cb) {
         auto* out = static_cast<float*>(output);
-        auto totalSamples = static_cast<int>(frameCount) * 2;
+        auto totalSamples = static_cast<int>(frameCount) * self->channelCount();
         std::fill_n(out, totalSamples, 0.0f);
         return paContinue;
     }
@@ -72,8 +72,7 @@ bool PortAudioOutput::open(double sampleRate, int channels) {
 bool PortAudioOutput::start() {
     if (!ctx_->stream)
         return false;
-    PaError err = Pa_StartStream(ctx_->stream);
-    return err == paNoError;
+    return Pa_StartStream(ctx_->stream) == paNoError;
 }
 
 bool PortAudioOutput::stop() {

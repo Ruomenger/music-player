@@ -33,25 +33,28 @@ int main(int argc, char* argv[]) {
                   << static_cast<int>(info.duration) << "s" << std::endl;
 
         engine.play();
-        std::cout << "Playing... Press Enter to stop." << std::endl;
 
+        std::cout << "Playing... Press Ctrl+C to stop." << std::endl;
         double lastPos = -1.0;
-        while (engine.state() == musicplayer::AudioEngine::State::Playing) {
+        while (true) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            if (engine.state() != musicplayer::AudioEngine::State::Playing)
+                break;
             double pos = engine.currentPosition();
-            int posInt = static_cast<int>(pos);
-            if (posInt != static_cast<int>(lastPos)) {
-                int dur = static_cast<int>(info.duration);
-                int pct = dur > 0 ? posInt * 100 / dur : 0;
-                std::cout << "\r  [" << posInt / 60 << ":" << (posInt % 60 < 10 ? "0" : "")
-                          << posInt % 60 << " / " << dur / 60 << ":" << (dur % 60 < 10 ? "0" : "")
-                          << dur % 60 << "] " << pct << "%" << std::flush;
+            int posSec = static_cast<int>(pos);
+            if (posSec != static_cast<int>(lastPos)) {
+                int durSec = static_cast<int>(info.duration);
+                if (durSec > 0) {
+                    int pct = posSec * 100 / durSec;
+                    std::cout << "\r  [" << posSec / 60 << ":" << (posSec % 60 < 10 ? "0" : "")
+                              << posSec % 60 << " / " << durSec / 60 << ":"
+                              << (durSec % 60 < 10 ? "0" : "") << durSec % 60 << "] " << pct << "%"
+                              << std::flush;
+                }
                 lastPos = pos;
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        std::cout << std::endl;
-
-        engine.stop();
+        std::cout << std::endl << "Playback finished." << std::endl;
         std::cout << "Stopped." << std::endl;
         return 0;
     }

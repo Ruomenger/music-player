@@ -20,6 +20,7 @@ public:
     void setCallback(DataCallback callback) override;
 
     const DataCallback& callback() const { return callback_; }
+    int channelCount() const { return channels_; }
 
 private:
     struct Context;
