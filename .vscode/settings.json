@@ -4,7 +4,19 @@
     "VCPKG_TARGET_TRIPLET": "x64-linux"
   },
   "cmake.buildDirectory": "${workspaceFolder}/build",
-  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "clangd.arguments": [
+        "--background-index",
+        "--background-index-priority=low",
+        "--clang-tidy",
+        "--completion-style=detailed",
+        "--enable-config",
+        "--header-insertion=never",
+        "-j=4",
+        "--pch-storage=memory",
+        "--compile-commands-dir=${workspaceFolder}/build"
+    ],
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "cmake.configureOnOpen": false,
   "files.watcherExclude": {
     "**/build/**": true,
     "**/vcpkg_installed/**": true
