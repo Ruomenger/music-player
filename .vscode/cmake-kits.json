@@ -2,26 +2,28 @@
   {
     "name": "MusicPlayer x64-linux Debug",
     "compilers": {
-      "C": "/usr/bin/clang",
-      "CXX": "/usr/bin/clang++"
+      "C": "/usr/bin/gcc",
+      "CXX": "/usr/bin/g++"
     },
     "cmakeSettings": {
       "CMAKE_TOOLCHAIN_FILE": "$env{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "VCPKG_TARGET_TRIPLET": "x64-linux",
       "CMAKE_BUILD_TYPE": "Debug",
+      "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
       "BUILD_TESTING": "ON"
     }
   },
   {
     "name": "MusicPlayer x64-linux Release",
     "compilers": {
-      "C": "/usr/bin/clang",
-      "CXX": "/usr/bin/clang++"
+      "C": "/usr/bin/gcc",
+      "CXX": "/usr/bin/g++"
     },
     "cmakeSettings": {
       "CMAKE_TOOLCHAIN_FILE": "$env{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "VCPKG_TARGET_TRIPLET": "x64-linux",
       "CMAKE_BUILD_TYPE": "Release",
+      "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
       "BUILD_TESTING": "ON"
     }
   }
