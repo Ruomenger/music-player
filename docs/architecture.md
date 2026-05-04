@@ -101,24 +101,31 @@ private:
 class IAudioDecoder {
 public:
     virtual ~IAudioDecoder() = default;
+
     virtual bool open(const std::string& filePath) = 0;
-    virtual std::vector<PcmFrame> decode(int maxFrames) = 0;
-    virtual double duration() const = 0;
-    virtual double sampleRate() const = 0;
-    virtual int channels() const = 0;
-    virtual bool seek(double seconds) = 0;
     virtual void close() = 0;
+    virtual AudioDecoderInfo info() const = 0;     // sampleRate / channels / duration / codecName / ...
+
+    // Returns up to `maxFrames` interleaved-float frames (channels * frame samples).
+    // Empty vector means EOF (file fully drained AND swr internal buffer empty).
+    // See audio-pipeline.md "decode() 契约" — overshooting maxFrames will cause audible glitches.
+    virtual std::vector<float> decode(size_t maxFrames) = 0;
+
+    virtual bool seek(double seconds) = 0;
 };
 
 class IAudioOutput {
 public:
+    using DataCallback = std::function<void(float* buffer, int frameCount)>;
+
     virtual ~IAudioOutput() = default;
-    virtual bool init(double sampleRate, int channels) = 0;
-    virtual bool start() = 0;
-    virtual bool stop() = 0;
-    virtual bool pause() = 0;
-    // callback: fill buffer with PCM frames, returns frames written
-    virtual void setDataCallback(std::function<int(float*, int)> callback) = 0;
+
+    virtual bool open(double sampleRate, int channels) = 0;  // alloc native stream, no playback yet
+    virtual bool start() = 0;                                 // begin/resume callback
+    virtual bool pause() = 0;                                 // pause callback, keep stream open
+    virtual bool stop() = 0;                                  // stop and close stream
+
+    virtual void setCallback(DataCallback cb) = 0;
 };
 
 class ISongRepository {
@@ -134,31 +141,23 @@ class IPlaylistRepository { /* ... */ };
 class ISettingsRepository { /* ... */ };
 ```
 
-## 播放模式状态机
+## 播放模式行为
 
-```
-                ┌──────────┐
-    ┌───────────│ SEQUENTIAL│───────────┐
-    │           └──────────┘           │
-    │  (曲目正常播完)                  │ (列表最后一首)
-    ▼                                  ▼
-┌─────────┐  (单曲播完)  ┌──────────────┐
-│  SINGLE  │◄────────────│ LIST_LOOP    │
-└─────────┘              └──────────────┘
-                              │
-                              │ (随机选取)
-    ▲                        │
-    │        ┌────────┐      │
-    └────────│ RANDOM │◄─────┘
-             └────────┘
-```
+`PlayMode` 不是状态机，而是用户选择的策略——决定**当前曲播完时下一首选哪首**、**手动 next/prev 时的行为**。
 
-| 模式 | 行为 |
-|------|------|
-| Single | 当前曲循环播放 |
-| Sequential | 按列表顺序播放，播完最后一首停止 |
-| ListLoop | 顺序播放，播完最后一首回到第一首 |
-| Random | 随机选曲 (Fisher-Yates shuffle + 游标，避免短期重复) |
+| 模式 | 当前曲自然播完 | 用户点 Next | 用户点 Prev | 列表末尾 |
+|------|---------------|-------------|-------------|----------|
+| `Single` | 重播当前曲 | 列表内下一首 | 列表内上一首 | 单曲循环不受影响 |
+| `Sequential` | 列表内下一首 | 列表内下一首 | 列表内上一首 | 停止播放 |
+| `ListLoop` | 列表内下一首 | 列表内下一首 | 列表内上一首 | 回到第一首 |
+| `Random` | 从 shuffle 队列取下一首 | 同左 | 回退 shuffle 历史 | shuffle 队列空时重新洗牌 |
+
+### Random 实现要点
+
+- 用 Fisher-Yates 一次性 shuffle 整个列表为 `shuffleQueue_`
+- 维护 `shuffleCursor_` 指向当前位置；next 即 `++cursor`，prev 即 `--cursor`
+- `cursor == queue.size()` 时重新 shuffle（保证不会立刻重复刚听过的几首）
+- 列表内容变化（添加/删除/换列表）时丢弃 shuffleQueue_ 重洗
 
 ## 线程模型
 
@@ -176,5 +175,6 @@ PortAudio Callback Thread (由 PortAudio 创建)
 ```
 
 - RingBuffer 实现为 lock-free SPSC (单生产者单消费者) 队列, 连接 Decode Thread → PortAudio Thread
-- PlayerController 通过 `std::atomic` 标志控制播放/暂停/停止状态
-- 所有 UI 状态变更通过 `QMetaObject::invokeMethod` 或信号/槽回主线程
+- AudioEngine 用 `std::atomic<State>` 控制播放/暂停/停止状态；用独立的 `std::atomic<bool> decodeRunning_` 控制解码线程生命周期（不与 State 耦合，便于 seek 时停-动 decode 线程而保持 State 不变）
+- 播放位置由 `std::atomic<uint64_t> framesPlayed_` (callback 端 `fetch_add`) + `std::atomic<uint64_t> seekFrameOffset_` (seek 时改写) 表示，不用 `atomic<double>`（在某些平台不是 lock-free）。详见 [audio-pipeline.md](audio-pipeline.md) 的"播放位置追踪"章节
+- 所有 UI 状态变更通过信号/槽回主线程；从非 Qt 线程发信号必须使用 `Qt::QueuedConnection`，否则 slot 会在错误线程执行

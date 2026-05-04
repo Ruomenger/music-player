@@ -33,6 +33,9 @@
 - [x] 编写 `test_ffmpeg_decoder.cpp` (5 个测试用例)
 - [x] 编写 `test_audio_pipeline.cpp` (3 个集成测试: 播放/暂停/Seek)
 - [x] 验证: 所有测试通过, 音频管线可播放
+- [x] **听感验证**: 真实 mp3/flac 实播 ≥30s 无卡顿/电流声 (自动测试无法捕捉解码超量丢样本类 bug，必须人工听)
+- [x] 拆分 `IAudioOutput` 的 pause/stop 语义 (pause 不关 stream)
+- [x] `AudioEngine` 位置追踪改用 `atomic<uint64_t>` framesPlayed + seekFrameOffset (取代 `atomic<double>` RMW)
 
 ## Phase 2: 数据库层 (Infra)
 
@@ -122,6 +125,9 @@
 - [ ] 性能测试: 大型播放列表加载和排序速度
 - [ ] 内存泄漏检查 (Valgrind / AddressSanitizer)
 - [ ] 边界测试: 损坏音频文件、空目录、特殊字符路径
+- [ ] AudioEngine 解码线程把 `sleep_for(10ms)` 轮询替换为 `std::condition_variable` 唤醒模型 (减少 seek/pause 响应延迟和 CPU 浪费)
+- [ ] songs 表加 FTS5 虚表 + 同步触发器，搜索从 `LIKE` 切到 `MATCH` (10k+ 行性能优化)
+- [ ] 听感回归测试矩阵: mp3/flac/aac/ogg 各跑一首完整曲目，无卡顿/咔哒/底噪
 
 ## Phase 10: 跨平台验证和打包
 

@@ -73,24 +73,19 @@ template<typename T>
 class RingBuffer {
 public:
     explicit RingBuffer(size_t capacity);
-    
-    // 生产者: 写入数据, 返回实际写入帧数
+
+    // 生产者: 写入 count 个元素, 返回实际写入数 (容量不足时 < count, 调用方负责保留剩余)
     size_t write(const T* data, size_t count);
-    
-    // 消费者: 读取数据, 返回实际读取帧数
+
+    // 消费者: 读取 count 个元素, 返回实际读取数
     size_t read(T* data, size_t count);
-    
-    // 消费者: 丢弃若干帧 (Seek 时使用)
-    void discard(size_t count);
-    
-    // 清空缓冲区
+
+    // 清空缓冲区 (仅在 SPSC 双方都已停止时调用)
     void clear();
-    
-    size_t available() const;   // 可读帧数
-    size_t free() const;        // 可写帧数
-    bool empty() const;
-    bool full() const;
-    
+
+    size_t available() const;   // 可读元素数
+    size_t freeSlots() const;   // 可写元素数
+
 private:
     std::vector<T> buffer_;
     std::atomic<size_t> readIdx_{0};
@@ -99,9 +94,12 @@ private:
 };
 ```
 
-- 容量取 2 的幂 (如 16384 帧 ≈ 0.37秒 @ 44100Hz), 使用 `mask_ = capacity - 1` 取代取模运算
-- readIdx 和 writeIdx 用 `std::atomic<size_t>` 实现 lock-free SPSC
-- `read()` 在 PortAudio 回调中调用，必须非阻塞且极快
+- **存储单元是 sample (interleaved float)**，不是 frame；2-channel 立体声每 1 frame = 2 samples。
+- 容量取 2 的幂。当前实现 `1 << 17` = 131072 samples = 65536 frames ≈ 1.5s @ 44.1 kHz stereo。
+- `mask_ = capacity - 1` 取代取模运算。
+- readIdx / writeIdx 单调递增，差值即可读元素数；用 `std::atomic<size_t>` 实现 lock-free SPSC。
+- `read()` 在 PortAudio 回调中调用，必须非阻塞且极快（无锁、无系统调用、无堆分配）。
+- **`write()` 是截断写**：写不下时只写一部分并返回实际写入数。**调用方必须检查返回值并把剩余样本保留到下次写入**，否则会丢音 (听感上是周期性卡顿/电流声)。
 
 ## FFmpeg 解码封装
 
@@ -125,21 +123,13 @@ using SwrCtx = std::unique_ptr<SwrContext,
 ```cpp
 class FfmpegDecoder : public IAudioDecoder {
 public:
-    struct Info {
-        double duration;      // seconds
-        int sampleRate;
-        int channels;
-        AVSampleFormat sampleFmt;
-        std::string codecName;
-    };
-
     bool open(const std::string& filePath) override;
-    Info getInfo() const;
-    std::vector<float> decode(size_t maxFrames) override;
+    AudioDecoderInfo info() const override;
+    std::vector<float> decode(size_t maxFrames) override;  // interleaved float, -1.0 ~ 1.0
     bool seek(double seconds) override;
     void close() override;
-    
-    // 元数据读取
+
+    // 元数据读取 (Phase 3)
     std::optional<std::vector<uint8_t>> readCoverArt();
     std::unordered_map<std::string, std::string> getMetadata();
 };
@@ -149,9 +139,21 @@ public:
 
 1. `avformat_open_input()` → `avformat_find_stream_info()` → 定位音频 stream
 2. `avcodec_find_decoder()` → `avcodec_open2()` → 创建解码上下文
-3. 创建 `SwrContext` 将任意 sample format 转换为 `AV_SAMPLE_FMT_FLT` (float planar 或 interleaved)
+3. 创建 `SwrContext` 将任意 sample format 转换为 `AV_SAMPLE_FMT_FLT` (interleaved float)
 4. 循环: `av_read_frame()` → `avcodec_send_packet()` → `avcodec_receive_frame()` → `swr_convert()`
 5. 输出统一为 `std::vector<float>` (interleaved, -1.0 ~ 1.0)
+
+### `decode(maxFrames)` 契约（重要）
+
+这是 **AudioEngine 与 Decoder 之间的硬约束**，违反会导致 RingBuffer 截断丢样本，听感上是周期性卡顿+咔哒声：
+
+| 规则 | 说明 |
+|------|------|
+| **不超量返回** | 返回值的 frame 数严格 ≤ `maxFrames`。MP3/AAC 等固定 frame 大小格式 (1024/1152 frames per AVFrame) 容易循环写超过 `maxFrames`，必须每次 `swr_convert` 时把 `out_count` 限定为 `maxFrames - alreadyWritten`。 |
+| **swr 内部缓冲跨调用持续** | `swr_convert` 因输出空间不足而保留的输入样本，必须在下次 `decode()` 开头通过 `swr_convert(out, want, NULL, 0)` 排干，不可丢弃。 |
+| **EOF 排干尾部** | 文件读完并向解码器送 nullptr 后，必须再排一次 swr 内部 buffer，避免最后几十毫秒丢失。 |
+| **空返回即 EOF** | 仅当文件已读完、解码器已 drain、swr 也无残留时才返回空 vector。中间任何时刻不允许返空。 |
+| **同步调用** | `decode()` 是阻塞 I/O，**不允许从 PortAudio 回调线程调用**。只能由专门的 decode 线程调用。 |
 
 ### Seek 实现
 
@@ -173,49 +175,83 @@ bool seek(double seconds) {
 
 ## PortAudio 输出封装
 
-### 初始化和设备选择
+### IAudioOutput 接口 (生命周期分离)
 
 ```cpp
-class PortAudioOutput : public IAudioOutput {
+class IAudioOutput {
 public:
-    PortAudioOutput() { Pa_Initialize(); }
-    ~PortAudioOutput() { Pa_Terminate(); }
+    using DataCallback = std::function<void(float* buffer, int frameCount)>;
 
-    bool init(double sampleRate, int channels) override {
-        PaStreamParameters params;
-        params.device = Pa_GetDefaultOutputDevice();
-        params.channelCount = channels;
-        params.sampleFormat = paFloat32;
-        params.suggestedLatency =
-            Pa_GetDeviceInfo(params.device)->defaultLowOutputLatency;
-        params.hostApiSpecificStreamInfo = nullptr;
+    virtual ~IAudioOutput() = default;
 
-        Pa_OpenStream(&stream_, nullptr, &params,
-                      sampleRate, paFramesPerBufferUnspecified,
-                      paNoFlag, callback, this);
-    }
-    
-private:
-    static int callback(const void*, void* output,
-                        unsigned long framesPerBuffer,
-                        const PaStreamCallbackTimeInfo*,
-                        PaStreamCallbackFlags,
-                        void* userData);
-    
-    PaStream* stream_ = nullptr;
-    std::function<int(float*, int)> dataCallback_;
+    // 分配 native stream 资源 (不开始拉数据)
+    virtual bool open(double sampleRate, int channels) = 0;
+
+    // 开始 / 恢复回调拉取 (Pa_StartStream)
+    virtual bool start() = 0;
+
+    // 暂停回调拉取，stream 保持打开 (Pa_StopStream)。下次 start() 直接恢复，不需要重 open。
+    virtual bool pause() = 0;
+
+    // 关闭并释放 stream (Pa_StopStream + Pa_CloseStream)。再播放需要重新 open()。
+    virtual bool stop() = 0;
+
+    virtual void setCallback(DataCallback cb) = 0;
 };
 ```
 
-### 注意点
+> **关键**：`pause()` 和 `stop()` 必须分开。把 `pause` 实现成 `stop` 会导致暂停后无法恢复（stream 已关闭，`start()` 失败）。
 
-- PortAudio 回调中 **不能**:
-  - 加锁 (mutex)
-  - 分配内存 (malloc/new)
-  - 调用可能阻塞的系统调用
-  - 调用 PortAudio API (如 `Pa_StopStream()`)
-- 只做: 从 RingBuffer 读数据 → 写入 output buffer → return
-- 跨平台 Host API 自动选择 (Linux: PulseAudio/ALSA, macOS: CoreAudio, Windows: WASAPI)
+### PortAudioOutput 状态转换
+
+```
+            open()                    start()
+   created ────────► opened ───────────────────► running
+                       ▲                            │
+                       │           pause()          │
+                       │ ◄──────────────────────────┤
+                       │                            │
+                       │           stop()           │
+                       └────────────────────────────┘
+                       (Pa_CloseStream + null out)
+```
+
+### 回调中的硬性约束
+
+PortAudio 回调跑在 OS 实时音频线程，**必须做到**：
+
+- 不加锁 (mutex)
+- 不分配内存 (malloc/new/std::vector resize 等)
+- 不调用阻塞系统调用 (file I/O / sleep / wait)
+- 不调用 PortAudio API (如 `Pa_StopStream`)
+- 仅使用 lock-free 的原子类型：`std::atomic<intN_t>` / `std::atomic<bool>` / `std::atomic<指针>`。
+  避免 `std::atomic<double>`、`std::atomic<结构体>` —— 在某些平台会退化为锁实现 (可用 `std::atomic<T>::is_always_lock_free` 静态断言)。
+- 只做：从 RingBuffer 读数据 → 写入 output buffer → 用 `fetch_add` 等无锁操作更新计数 → return。
+
+跨平台 Host API 由 PortAudio 自动选择 (Linux: PulseAudio/ALSA, macOS: CoreAudio, Windows: WASAPI)。
+
+## 播放位置追踪
+
+```cpp
+class AudioEngine {
+    std::atomic<uint64_t> framesPlayed_{0};      // 由 callback 单调累加
+    std::atomic<uint64_t> seekFrameOffset_{0};   // 仅在 stream paused 时由 seek 写入
+
+    double currentPosition() const {
+        return double(seekFrameOffset_.load() + framesPlayed_.load()) / info_.sampleRate;
+    }
+};
+```
+
+设计要点：
+
+- **callback 端只 `fetch_add`**，不做读-改-写。`fetch_add` 是单条原子指令，保证 lock-free。
+- **seek 时**：先 `output_->pause()` 让 callback 静默 → 停 decode 线程 → 清 RingBuffer → `decoder_->seek()` → `seekFrameOffset_ = seconds * sampleRate; framesPlayed_ = 0` → 重启 decode 线程和 stream。整个过程 callback 不在跑，对两个 atomic 的写入无 race。
+- **底层用 frame 计数 (`uint64_t`)，不用秒 (`double`)**：
+  - `std::atomic<uint64_t>` 在所有现代平台都是 lock-free
+  - `std::atomic<double>` 在 ARM32 / 部分嵌入式平台可能退化为锁
+  - `uint64_t` 帧计数无浮点累积误差
+- **位置按"声卡 wallclock"前进，而非"实际消费帧数"**：underrun 时 callback 仍以 zero-fill 占用时间，position 应同步前进，否则 UI 看起来像"卡住了"。
 
 ## 支持的音频格式
 
