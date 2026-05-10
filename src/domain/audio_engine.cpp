@@ -47,13 +47,26 @@ bool AudioEngine::open(const std::string& filePath) {
         return false;
     info_ = decoder_->info();
 
+    // Reject decoders that report nonsense — channels==0 would cause a
+    // divide-by-zero in decodeLoop (free / channels) and downstream output
+    // configuration would be ambiguous.
+    if (info_.channels <= 0 || info_.sampleRate <= 0) {
+        decoder_->close();
+        return false;
+    }
+
     if (!output_->open(info_.sampleRate, info_.channels)) {
         decoder_->close();
         return false;
     }
 
-    output_->setCallback([this](float* buffer, int frameCount) {
-        const int channels = info_.channels;
+    // Capture channels by value so the realtime callback never reads info_ —
+    // info_ is mutated only by open() on the main thread, and even though
+    // the std::thread / PortAudio start sequence does establish
+    // happens-before, keeping the callback's hot path off shared state is
+    // both clearer and cheaper.
+    const int channels = info_.channels;
+    output_->setCallback([this, channels](float* buffer, int frameCount) {
         const int totalSamples = frameCount * channels;
 
         if (state_.load(std::memory_order_acquire) != State::Playing) {
@@ -171,6 +184,11 @@ void AudioEngine::stopDecodeThread() {
 }
 
 void AudioEngine::decodeLoop() {
+    // Snapshot info_ at thread start. open() validated channels > 0 before
+    // this thread was spawned, and info_ is not mutated until the next
+    // stop() (which joins this thread first), so the snapshot is safe.
+    const auto channels = static_cast<size_t>(info_.channels);
+
     std::vector<float> pending;
     while (decodeRunning_.load(std::memory_order_acquire)) {
         // Drain any leftover samples from a previous truncated write (defensive — current
@@ -186,13 +204,12 @@ void AudioEngine::decodeLoop() {
         }
 
         const size_t free = ringBuffer_.freeSlots();
-        if (free < kDecodeChunkFrames * static_cast<size_t>(info_.channels)) {
+        if (free < kDecodeChunkFrames * channels) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
         }
 
-        const size_t framesToDecode =
-            std::min(free / static_cast<size_t>(info_.channels), kDecodeChunkFrames);
+        const size_t framesToDecode = std::min(free / channels, kDecodeChunkFrames);
         auto samples = decoder_->decode(framesToDecode);
         if (samples.empty()) {
             eofReached_.store(true, std::memory_order_release);
