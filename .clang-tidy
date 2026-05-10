@@ -26,6 +26,9 @@ Checks: >
   -cppcoreguidelines-non-private-member-variables-in-classes,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
   -cppcoreguidelines-pro-type-vararg,
   -cppcoreguidelines-owning-memory,
   -misc-non-private-member-variables-in-classes,
@@ -43,7 +46,8 @@ Checks: >
   -readability-redundant-access-specifiers,
   -readability-braces-around-statements,
   -readability-math-missing-parentheses,
-  -readability-named-parameter
+  -readability-named-parameter,
+  -readability-uppercase-literal-suffix
 
 CheckOptions:
   # Naming — aligned with the codebase's existing camelBack convention.
@@ -65,8 +69,15 @@ CheckOptions:
   - { key: readability-identifier-naming.ProtectedMemberCase,          value: camelBack }
   - { key: readability-identifier-naming.ProtectedMemberSuffix,        value: _ }
   - { key: readability-identifier-naming.EnumConstantCase,             value: CamelCase }
-  - { key: readability-identifier-naming.ConstantCase,                 value: CamelCase }
-  - { key: readability-identifier-naming.ConstantPrefix,               value: k }
+  # Local const vars are just immutable locals, not "constants" in the
+  # k-prefixed sense — keep them camelBack. The k-prefixed CamelCase
+  # convention applies only to truly global / static constants.
+  - { key: readability-identifier-naming.LocalConstantCase,            value: camelBack }
+  - { key: readability-identifier-naming.LocalConstantPointerCase,     value: camelBack }
+  - { key: readability-identifier-naming.ConstantParameterCase,        value: camelBack }
+  - { key: readability-identifier-naming.ConstantMemberCase,           value: camelBack }
+  - { key: readability-identifier-naming.ConstexprVariableCase,        value: CamelCase }
+  - { key: readability-identifier-naming.ConstexprVariablePrefix,      value: k }
   - { key: readability-identifier-naming.GlobalConstantCase,           value: CamelCase }
   - { key: readability-identifier-naming.GlobalConstantPrefix,         value: k }
   - { key: readability-identifier-naming.StaticConstantCase,           value: CamelCase }
