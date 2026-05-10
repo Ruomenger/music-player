@@ -25,8 +25,8 @@ void AudioEngine::setOutput(std::unique_ptr<IAudioOutput> output) {
 double AudioEngine::currentPosition() const {
     if (info_.sampleRate <= 0)
         return 0.0;
-    const uint64_t total =
-        seekFrameOffset_.load(std::memory_order_acquire) + framesPlayed_.load(std::memory_order_acquire);
+    const uint64_t total = seekFrameOffset_.load(std::memory_order_acquire) +
+                           framesPlayed_.load(std::memory_order_acquire);
     return static_cast<double>(total) / static_cast<double>(info_.sampleRate);
 }
 
@@ -54,8 +54,8 @@ bool AudioEngine::open(const std::string& filePath) {
             return;
         }
 
-        const int read = static_cast<int>(
-            ringBuffer_.read(buffer, static_cast<size_t>(totalSamples)));
+        const int read =
+            static_cast<int>(ringBuffer_.read(buffer, static_cast<size_t>(totalSamples)));
         if (read < totalSamples) {
             std::fill_n(buffer + read, totalSamples - read, 0.0f);
         }
@@ -126,8 +126,7 @@ void AudioEngine::seek(double seconds) {
     ringBuffer_.clear();
     decoder_->seek(seconds);
 
-    const auto offsetFrames =
-        static_cast<uint64_t>(std::max(0.0, seconds) * info_.sampleRate);
+    const auto offsetFrames = static_cast<uint64_t>(std::max(0.0, seconds) * info_.sampleRate);
     seekFrameOffset_.store(offsetFrames, std::memory_order_release);
     framesPlayed_.store(0, std::memory_order_release);
 
@@ -158,8 +157,7 @@ void AudioEngine::decodeLoop() {
         if (!pending.empty()) {
             const size_t written = ringBuffer_.write(pending.data(), pending.size());
             if (written < pending.size()) {
-                pending.erase(pending.begin(),
-                              pending.begin() + static_cast<ptrdiff_t>(written));
+                pending.erase(pending.begin(), pending.begin() + static_cast<ptrdiff_t>(written));
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 continue;
             }

@@ -141,8 +141,8 @@ std::vector<float> FfmpegDecoder::decode(size_t maxFrames) {
         if (framesWritten >= maxFrames)
             return;
         const int wanted = static_cast<int>(maxFrames - framesWritten);
-        uint8_t* dst[1] = {
-            reinterpret_cast<uint8_t*>(output.data() + framesWritten * static_cast<size_t>(channels))};
+        uint8_t* dst[1] = {reinterpret_cast<uint8_t*>(
+            output.data() + framesWritten * static_cast<size_t>(channels))};
         int got = swr_convert(swrCtx_.get(), dst, wanted, srcData, srcSamples);
         if (got > 0)
             framesWritten += static_cast<size_t>(got);
