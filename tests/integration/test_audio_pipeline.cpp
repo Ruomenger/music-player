@@ -11,11 +11,13 @@
 
 using namespace musicplayer;
 
-static std::string testDataPath(const std::string& filename) {
+namespace {
+
+std::string testDataPath(const std::string& filename) {
     return (std::filesystem::current_path() / "testdata" / filename).string();
 }
 
-static void createSilentWav(const std::string& path, double durationSec) {
+void createSilentWav(const std::string& path, double durationSec) {
     std::ofstream out(path, std::ios::binary);
     int sampleRate = 44100;
     int channels = 2;
@@ -31,12 +33,12 @@ static void createSilentWav(const std::string& path, double durationSec) {
     out.write(reinterpret_cast<const char*>(&fmtSize), 4);
     int16_t audioFormat = 1;
     out.write(reinterpret_cast<const char*>(&audioFormat), 2);
-    int16_t numChannels = static_cast<int16_t>(channels);
+    auto numChannels = static_cast<int16_t>(channels);
     out.write(reinterpret_cast<const char*>(&numChannels), 2);
     int32_t sr = sampleRate;
     out.write(reinterpret_cast<const char*>(&sr), 4);
     out.write(reinterpret_cast<const char*>(&byteRate), 4);
-    int16_t blockAlign = static_cast<int16_t>(channels * 2);
+    auto blockAlign = static_cast<int16_t>(channels * 2);
     out.write(reinterpret_cast<const char*>(&blockAlign), 2);
     int16_t bitsPerSample = 16;
     out.write(reinterpret_cast<const char*>(&bitsPerSample), 2);
@@ -45,6 +47,8 @@ static void createSilentWav(const std::string& path, double durationSec) {
     std::vector<char> silence(static_cast<size_t>(dataSize), 0);
     out.write(silence.data(), static_cast<std::streamsize>(silence.size()));
 }
+
+}  // namespace
 
 TEST(AudioPipeline, OpenAndPlaySilence) {
     std::string path = testDataPath("test_pipeline.wav");

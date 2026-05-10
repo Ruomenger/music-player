@@ -6,11 +6,11 @@
 namespace musicplayer {
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
-    setWindowTitle(QString::fromUtf8(APP_NAME.data(), static_cast<int>(APP_NAME.size())));
+    setWindowTitle(QString::fromUtf8(kAppName.data(), static_cast<int>(kAppName.size())));
     setMinimumSize(800, 600);
 
     auto* centralLabel =
-        new QLabel(QString::fromUtf8(APP_NAME.data(), static_cast<int>(APP_NAME.size())), this);
+        new QLabel(QString::fromUtf8(kAppName.data(), static_cast<int>(kAppName.size())), this);
     centralLabel->setAlignment(Qt::AlignCenter);
     QFont font = centralLabel->font();
     font.setPointSize(24);

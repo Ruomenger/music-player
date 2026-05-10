@@ -17,6 +17,6 @@ struct SongInfo {
     bool hasLyric = false;
 };
 
-enum class PlayMode { Single, Sequential, ListLoop, Random };
+enum class PlayMode : std::uint8_t { Single, Sequential, ListLoop, Random };
 
 }  // namespace musicplayer

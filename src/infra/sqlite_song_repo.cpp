@@ -2,6 +2,9 @@
 
 namespace musicplayer {
 
+// Phase 2: stubs. Methods will use the SQLite handle once added; for now
+// silence "can be made static" since the eventual signature is non-static.
+// NOLINTBEGIN(readability-convert-member-functions-to-static)
 bool SqliteSongRepo::initialize(const std::string& /*dbPath*/) {
     return false;
 }
@@ -17,5 +20,6 @@ int SqliteSongRepo::insertSong(const SongInfo& /*song*/) {
 bool SqliteSongRepo::removeSong(int /*id*/) {
     return false;
 }
+// NOLINTEND(readability-convert-member-functions-to-static)
 
 }  // namespace musicplayer

@@ -36,7 +36,7 @@ FfmpegDecoder::FfmpegDecoder() {
 }
 
 FfmpegDecoder::~FfmpegDecoder() {
-    close();
+    FfmpegDecoder::close();
 }
 
 bool FfmpegDecoder::open(const std::string& filePath) {
@@ -121,9 +121,7 @@ bool FfmpegDecoder::initResampler() {
         return false;
 
     swrCtx_.reset(swr);
-    if (swr_init(swrCtx_.get()) < 0)
-        return false;
-    return true;
+    return swr_init(swrCtx_.get()) >= 0;
 }
 
 std::vector<float> FfmpegDecoder::decode(size_t maxFrames) {
@@ -160,7 +158,7 @@ std::vector<float> FfmpegDecoder::decode(size_t maxFrames) {
     while (framesWritten < maxFrames) {
         int ret = avcodec_receive_frame(cc, frame_.get());
         if (ret == 0) {
-            const uint8_t** srcData = const_cast<const uint8_t**>(frame_->data);
+            auto* srcData = const_cast<const uint8_t**>(frame_->data);
             writeOutput(srcData, frame_->nb_samples);
         } else if (ret == AVERROR(EAGAIN)) {
             if (flushed)

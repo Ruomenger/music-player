@@ -32,13 +32,11 @@ struct PortAudioOutput::Context {
     PaStream* stream = nullptr;
 };
 
-PortAudioOutput::PortAudioOutput() : ctx_(std::make_unique<Context>()) {
-    Pa_Initialize();
-    initialized_ = true;
-}
+PortAudioOutput::PortAudioOutput()
+    : ctx_(std::make_unique<Context>()), initialized_(Pa_Initialize() == paNoError) {}
 
 PortAudioOutput::~PortAudioOutput() {
-    stop();
+    PortAudioOutput::stop();
     if (initialized_)
         Pa_Terminate();
 }

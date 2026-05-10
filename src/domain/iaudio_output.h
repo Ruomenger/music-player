@@ -8,7 +8,12 @@ class IAudioOutput {
 public:
     using DataCallback = std::function<void(float* buffer, int frameCount)>;
 
+    IAudioOutput() = default;
     virtual ~IAudioOutput() = default;
+    IAudioOutput(const IAudioOutput&) = delete;
+    IAudioOutput& operator=(const IAudioOutput&) = delete;
+    IAudioOutput(IAudioOutput&&) = delete;
+    IAudioOutput& operator=(IAudioOutput&&) = delete;
 
     // open: allocate native stream resources (does NOT begin pulling samples).
     virtual bool open(double sampleRate, int channels) = 0;

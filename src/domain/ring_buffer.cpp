@@ -20,7 +20,7 @@ size_t RingBuffer<T>::write(const T* data, size_t count) {
     size_t firstChunk = std::min(toWrite, buffer_.size() - (w & mask_));
 
     std::memcpy(&buffer_[w & mask_], data, firstChunk * sizeof(T));
-    std::memcpy(&buffer_[0], data + firstChunk, (toWrite - firstChunk) * sizeof(T));
+    std::memcpy(buffer_.data(), data + firstChunk, (toWrite - firstChunk) * sizeof(T));
 
     writeIdx_.store(w + toWrite, std::memory_order_release);
     return toWrite;
@@ -37,7 +37,7 @@ size_t RingBuffer<T>::read(T* data, size_t count) {
     size_t firstChunk = std::min(toRead, buffer_.size() - (r & mask_));
 
     std::memcpy(data, &buffer_[r & mask_], firstChunk * sizeof(T));
-    std::memcpy(data + firstChunk, &buffer_[0], (toRead - firstChunk) * sizeof(T));
+    std::memcpy(data + firstChunk, buffer_.data(), (toRead - firstChunk) * sizeof(T));
 
     readIdx_.store(r + toRead, std::memory_order_release);
     return toRead;

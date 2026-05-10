@@ -14,19 +14,21 @@ struct SwrContext;
 
 namespace musicplayer {
 
-class FfmpegDecoder : public IAudioDecoder {
+class FfmpegDecoder final : public IAudioDecoder {
 public:
     FfmpegDecoder();
     ~FfmpegDecoder() override;
 
     FfmpegDecoder(const FfmpegDecoder&) = delete;
     FfmpegDecoder& operator=(const FfmpegDecoder&) = delete;
+    FfmpegDecoder(FfmpegDecoder&&) = delete;
+    FfmpegDecoder& operator=(FfmpegDecoder&&) = delete;
 
     bool open(const std::string& filePath) override;
     std::vector<float> decode(size_t maxFrames) override;
     bool seek(double seconds) override;
     void close() override;
-    AudioDecoderInfo info() const override;
+    [[nodiscard]] AudioDecoderInfo info() const override;
 
 private:
     bool findAudioStream();

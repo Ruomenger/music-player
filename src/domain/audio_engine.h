@@ -15,13 +15,15 @@ namespace musicplayer {
 
 class AudioEngine {
 public:
-    enum class State { Stopped, Playing, Paused };
+    enum class State : std::uint8_t { Stopped, Playing, Paused };
 
     AudioEngine();
     ~AudioEngine();
 
     AudioEngine(const AudioEngine&) = delete;
     AudioEngine& operator=(const AudioEngine&) = delete;
+    AudioEngine(AudioEngine&&) = delete;
+    AudioEngine& operator=(AudioEngine&&) = delete;
 
     void setDecoder(std::unique_ptr<IAudioDecoder> decoder);
     void setOutput(std::unique_ptr<IAudioOutput> output);
@@ -32,10 +34,10 @@ public:
     void stop();
     void seek(double seconds);
 
-    State state() const { return state_.load(std::memory_order_acquire); }
-    double currentPosition() const;
-    double duration() const { return info_.duration; }
-    const AudioDecoderInfo& info() const { return info_; }
+    [[nodiscard]] State state() const { return state_.load(std::memory_order_acquire); }
+    [[nodiscard]] double currentPosition() const;
+    [[nodiscard]] double duration() const { return info_.duration; }
+    [[nodiscard]] const AudioDecoderInfo& info() const { return info_; }
 
 private:
     void decodeLoop();

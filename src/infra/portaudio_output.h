@@ -6,13 +6,15 @@
 
 namespace musicplayer {
 
-class PortAudioOutput : public IAudioOutput {
+class PortAudioOutput final : public IAudioOutput {
 public:
     PortAudioOutput();
     ~PortAudioOutput() override;
 
     PortAudioOutput(const PortAudioOutput&) = delete;
     PortAudioOutput& operator=(const PortAudioOutput&) = delete;
+    PortAudioOutput(PortAudioOutput&&) = delete;
+    PortAudioOutput& operator=(PortAudioOutput&&) = delete;
 
     bool open(double sampleRate, int channels) override;
     bool start() override;
@@ -20,8 +22,8 @@ public:
     bool stop() override;
     void setCallback(DataCallback callback) override;
 
-    const DataCallback& callback() const { return callback_; }
-    int channelCount() const { return channels_; }
+    [[nodiscard]] const DataCallback& callback() const { return callback_; }
+    [[nodiscard]] int channelCount() const { return channels_; }
 
 private:
     struct Context;
