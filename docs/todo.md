@@ -37,15 +37,32 @@
 - [x] 拆分 `IAudioOutput` 的 pause/stop 语义 (pause 不关 stream)
 - [x] `AudioEngine` 位置追踪改用 `atomic<uint64_t>` framesPlayed + seekFrameOffset (取代 `atomic<double>` RMW)
 
+### Phase 1 后续修复 (audit 2026-05-11)
+
+设计 audit 发现的 Phase 1 范围内的真实 bug 与接线缺口：
+
+- [x] `AudioEngine::seek()` 在 Paused 状态下不重启 decode 线程 → resume 后永久静音 (`6942919`)
+- [x] decoder EOF 不通知 engine → `state_` 一直 Playing，`framesPlayed_` 越过 duration (`6942919`)
+- [x] `FfmpegDecoder::initResampler()` 把 swr 输出速率硬编码为输入速率，无法真正重采样 (`7be3ac0`)
+- [x] `IAudioOutput::defaultSampleRate()` + engine 接线，按设备首选速率驱动 decoder (`89f9dc2`)
+- [x] 三个回归测试: `SeekWhilePausedThenResumeAdvancesPosition` / `ReachesStoppedAtEndOfStream` / `OpensDecoderAtOutputDeviceSampleRate`
+
 ## Phase 2: 数据库层 (Infra)
 
-- [ ] 实现 `config_paths` (跨平台标准路径)
+### 已完成的预备工作
+
+- [x] 实现 `ConfigPaths` (`QStandardPaths` 三个跨平台目录) (`4e87f42`)
+- [x] `SqliteSongRepo` 所有 stub 方法改抛 `std::logic_error` 而非静默返回失败值 (`4bce7f1`)
+- [x] `test_config_paths.cpp` + `test_sqlite_song_repo.cpp` (前者验证目录创建，后者验证 stub 抛错)
+
+### 实际实现
+
 - [ ] 实现 `SqliteSongRepo` (CRUD for songs 表)
 - [ ] 实现 `SqlitePlaylistRepo` (CRUD for playlists + playlist_songs 表)
 - [ ] 实现 `SqliteSettingsRepo` (CRUD for settings 表)
 - [ ] 实现 `PlayerStateRepo` (save/load player_state 表)
 - [ ] 实现数据库迁移/初始化逻辑 (建表 + PRAGMA 设置)
-- [ ] 编写 `test_sqlite_song_repo.cpp` (用 :memory: 数据库)
+- [ ] 扩充 `test_sqlite_song_repo.cpp` 为真实 CRUD 测试 (用 `:memory:` 数据库)
 - [ ] 编写 `test_sqlite_playlist_repo.cpp`
 - [ ] 验证: 可增删改查歌曲和歌单
 

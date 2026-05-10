@@ -64,6 +64,10 @@ class RingBuffer { /* ... */ };
 
 ### Application Layer
 
+> **状态：Phase 4 设计稿。** `PlayerController` / `PlaylistManager` /
+> `LyricManager` 当前是空 placeholder 类，仅声明 Q_OBJECT 和构造函数。
+> 下面的 API 是 Phase 4 启动时要实现的目标接口。
+
 ```cpp
 // PlayerController - 播放器核心控制器
 class PlayerController : public QObject {
@@ -100,27 +104,44 @@ private:
 ```cpp
 class IAudioDecoder {
 public:
+    IAudioDecoder() = default;
     virtual ~IAudioDecoder() = default;
+    IAudioDecoder(const IAudioDecoder&) = delete;
+    IAudioDecoder& operator=(const IAudioDecoder&) = delete;
+    IAudioDecoder(IAudioDecoder&&) = delete;
+    IAudioDecoder& operator=(IAudioDecoder&&) = delete;
 
     virtual bool open(const std::string& filePath) = 0;
-    virtual void close() = 0;
-    virtual AudioDecoderInfo info() const = 0;     // sampleRate / channels / duration / codecName / ...
-
     // Returns up to `maxFrames` interleaved-float frames (channels * frame samples).
     // Empty vector means EOF (file fully drained AND swr internal buffer empty).
     // See audio-pipeline.md "decode() 契约" — overshooting maxFrames will cause audible glitches.
     virtual std::vector<float> decode(size_t maxFrames) = 0;
-
     virtual bool seek(double seconds) = 0;
+    virtual void close() = 0;
+    [[nodiscard]] virtual AudioDecoderInfo info() const = 0;
+
+    // Configure the desired output sample rate before open(). Pass 0 to use
+    // the file's native rate (the default). After open(), info().sampleRate
+    // reports the post-resampling rate.
+    virtual void setTargetSampleRate(int rate) = 0;
 };
 
 class IAudioOutput {
 public:
     using DataCallback = std::function<void(float* buffer, int frameCount)>;
 
+    IAudioOutput() = default;
     virtual ~IAudioOutput() = default;
+    IAudioOutput(const IAudioOutput&) = delete;
+    IAudioOutput& operator=(const IAudioOutput&) = delete;
+    IAudioOutput(IAudioOutput&&) = delete;
+    IAudioOutput& operator=(IAudioOutput&&) = delete;
 
     virtual bool open(double sampleRate, int channels) = 0;  // alloc native stream, no playback yet
+    // Device's preferred output rate (Hz); 0 if no device. AudioEngine uses
+    // this to drive setTargetSampleRate so the output never has to negotiate
+    // an unsupported rate (matters on Linux ALSA / Windows WASAPI).
+    [[nodiscard]] virtual double defaultSampleRate() const = 0;
     virtual bool start() = 0;                                 // begin/resume callback
     virtual bool pause() = 0;                                 // pause callback, keep stream open
     virtual bool stop() = 0;                                  // stop and close stream
@@ -128,6 +149,8 @@ public:
     virtual void setCallback(DataCallback cb) = 0;
 };
 
+// Repository abstractions (Phase 2). Currently the concrete SqliteSongRepo
+// is a Phase 2 stub that throws std::logic_error from every method.
 class ISongRepository {
 public:
     virtual ~ISongRepository() = default;

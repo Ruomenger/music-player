@@ -1,5 +1,10 @@
 # 数据库表设计 (SQLite3)
 
+> **状态：Phase 2 设计稿，未实现。** `SqliteSongRepo` / `SqlitePlaylistRepo` /
+> `SqliteSettingsRepo` 当前是 stub —— 调用任何方法会抛 `std::logic_error`
+> ("not implemented (Phase 2)"). 本文档定义的表、索引、触发器、PRAGMA 全部
+> 待 Phase 2 启动时按本设计落地。表结构在落地前还可调整。
+
 ## ER 关系概览
 
 ```
