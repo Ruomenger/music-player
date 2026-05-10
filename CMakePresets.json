@@ -1,6 +1,6 @@
 {
   "version": 6,
-  "cmakeMinimumRequired": { "major": 3, "minor": 31, "patch": 0 },
+  "cmakeMinimumRequired": { "major": 3, "minor": 28, "patch": 0 },
   "configurePresets": [
     {
       "name": "_base",
@@ -56,13 +56,56 @@
       "displayName": "macOS arm64 (Release)",
       "inherits": "_macos-arm64",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "_ci-base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "ci-debug",
+      "displayName": "CI Debug",
+      "inherits": "_ci-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_SANITIZERS": "OFF",
+        "ENABLE_COVERAGE": "OFF"
+      }
+    },
+    {
+      "name": "ci-asan",
+      "displayName": "CI ASan+UBSan",
+      "inherits": "_ci-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_SANITIZERS": "ON",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer"
+      }
+    },
+    {
+      "name": "ci-coverage",
+      "displayName": "CI Coverage",
+      "inherits": "_ci-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_COVERAGE": "ON",
+        "CMAKE_CXX_FLAGS": "--coverage -O0 -g"
+      }
     }
   ],
   "buildPresets": [
     { "name": "linux-x64-debug",     "configurePreset": "linux-x64-debug" },
     { "name": "linux-x64-release",   "configurePreset": "linux-x64-release" },
     { "name": "macos-arm64-debug",   "configurePreset": "macos-arm64-debug" },
-    { "name": "macos-arm64-release", "configurePreset": "macos-arm64-release" }
+    { "name": "macos-arm64-release", "configurePreset": "macos-arm64-release" },
+    { "name": "ci-debug",            "configurePreset": "ci-debug" },
+    { "name": "ci-asan",             "configurePreset": "ci-asan" },
+    { "name": "ci-coverage",         "configurePreset": "ci-coverage" }
   ],
   "testPresets": [
     {
@@ -73,6 +116,21 @@
     {
       "name": "macos-arm64-debug",
       "configurePreset": "macos-arm64-debug",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "ci-debug",
+      "configurePreset": "ci-debug",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "ci-asan",
+      "configurePreset": "ci-asan",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "ci-coverage",
+      "configurePreset": "ci-coverage",
       "output": { "outputOnFailure": true }
     }
   ]

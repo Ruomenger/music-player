@@ -1,0 +1,204 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  CTEST_PARALLEL_LEVEL: 4
+  CTEST_OUTPUT_ON_FAILURE: 1
+
+jobs:
+  # ── 格式化检查 ──────────────────────────────────
+  format:
+    name: "Format Check"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format-21
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | \
+            sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | \
+            sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update
+          sudo apt-get install -y clang-format-21
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 100
+      - name: Check formatting
+        run: bash scripts/format.sh --check
+
+  # ── Clang-Tidy 静态分析 ─────────────────────────
+  tidy:
+    name: "Clang-Tidy"
+    runs-on: ubuntu-24.04
+    needs: [format]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | \
+            sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main" | \
+            sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build clang-21 clang-tidy-21 clang-format-21 \
+            qt6-base-dev libgtest-dev portaudio19-dev \
+            libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 100
+      - name: Configure
+        run: cmake --preset ci-debug
+      - name: Run Clang-Tidy
+        run: bash scripts/tidy.sh
+
+  # ── 构建 & 测试 ─────────────────────────────────
+  build-and-test:
+    name: "Build & Test (${{ matrix.os }})"
+    runs-on: ${{ matrix.os }}
+    needs: [format]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            preset: ci-debug
+          - os: ubuntu-24.04-arm
+            preset: ci-debug
+          - os: macos-14
+            preset: ci-debug
+          - os: windows-latest
+            preset: ci-debug
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build qt6-base-dev libgtest-dev portaudio19-dev \
+            libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install cmake ninja qt googletest portaudio ffmpeg
+
+      - name: Setup vcpkg (Windows)
+        if: runner.os == 'Windows'
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: 'vcpkg.json'
+
+      - name: Install Qt (Windows)
+        if: runner.os == 'Windows'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.5.3'
+          modules: 'qtbase'
+
+      - name: Configure
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cmake --preset ${{ matrix.preset }} \
+              -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+              -DVCPKG_TARGET_TRIPLET=x64-windows
+          else
+            cmake --preset ${{ matrix.preset }}
+          fi
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }}
+
+  # ── Sanitizer 测试 (ASan + UBSan) ──────────────
+  sanitizer:
+    name: "Sanitizer (ASan+UBSan)"
+    runs-on: ubuntu-24.04
+    needs: [format]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build qt6-base-dev libgtest-dev portaudio19-dev \
+            libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
+      - name: Configure (ASan)
+        run: cmake --preset ci-asan
+      - name: Build
+        run: cmake --build --preset ci-asan
+      - name: Test with Sanitizers
+        run: ctest --preset ci-asan
+
+  # ── 覆盖率 ──────────────────────────────────────
+  coverage:
+    name: "Coverage Report"
+    runs-on: ubuntu-24.04
+    needs: [build-and-test, sanitizer]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake ninja-build qt6-base-dev libgtest-dev portaudio19-dev \
+            libavcodec-dev libavformat-dev libavutil-dev libswresample-dev lcov
+      - name: Configure (Coverage)
+        run: cmake --preset ci-coverage
+      - name: Build
+        run: cmake --build --preset ci-coverage
+      - name: Test
+        run: ctest --preset ci-coverage
+      - name: Generate coverage report
+        run: |
+          lcov --capture --directory build/ci-coverage \
+               --output-file coverage.info \
+               --ignore-errors mismatch,inconsistent,gcov
+          lcov --remove coverage.info '/usr/*' '*/tests/*' '*/_deps/*' '*/vcpkg/*' \
+               --output-file coverage_filtered.info \
+               --ignore-errors unused
+          lcov --list coverage_filtered.info
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push'
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage_filtered.info
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # ── 汇总 ────────────────────────────────────────
+  summary:
+    name: "CI Summary"
+    runs-on: ubuntu-24.04
+    needs: [format, tidy, build-and-test, sanitizer, coverage]
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          echo "## CI Summary" >> $GITHUB_STEP_SUMMARY
+          results="${{ needs.format.result }} ${{ needs.tidy.result }} ${{ needs.build-and-test.result }} ${{ needs.sanitizer.result }} ${{ needs.coverage.result }}"
+          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Format | ${{ needs.format.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tidy | ${{ needs.tidy.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build & Test | ${{ needs.build-and-test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Sanitizer | ${{ needs.sanitizer.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Coverage | ${{ needs.coverage.result }} |" >> $GITHUB_STEP_SUMMARY
+          if echo "$results" | grep -q 'failure\|cancelled'; then
+            echo "❌ Some jobs failed." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ All jobs passed." >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.31)
+cmake_minimum_required(VERSION 3.28)
 project(musicplayer
     VERSION 0.1.0
     DESCRIPTION "A cross-platform desktop music player built with Qt6 and C++23"
@@ -14,13 +14,15 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC OFF)
 
 option(BUILD_TESTING "Build tests" ON)
+option(ENABLE_SANITIZERS "Enable sanitizers" OFF)
+option(ENABLE_COVERAGE "Enable code coverage" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(cmake/CompilerWarnings.cmake)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Sql)
-find_package(FFmpeg REQUIRED COMPONENTS AVCODEC AVFORMAT AVUTIL SWRESAMPLE)
+find_package(FFmpeg REQUIRED)
 find_package(PortAudio REQUIRED)
 
 if(BUILD_TESTING)
