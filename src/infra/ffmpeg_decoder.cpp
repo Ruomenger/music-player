@@ -68,7 +68,7 @@ bool FfmpegDecoder::open(const std::string& filePath) {
     info_.duration = stream->duration > 0
                          ? static_cast<double>(stream->duration) * av_q2d(stream->time_base)
                          : static_cast<double>(fc->duration) / AV_TIME_BASE;
-    info_.sampleRate = cc->sample_rate;
+    info_.sampleRate = targetSampleRate_ > 0 ? targetSampleRate_ : cc->sample_rate;
     info_.channels = cc->ch_layout.nb_channels;
     info_.codecName = avcodec_get_name(cc->codec_id);
     info_.formatName = fc->iformat->name;
@@ -113,15 +113,21 @@ bool FfmpegDecoder::initResampler() {
     AVChannelLayout outLayout;
     av_channel_layout_default(&outLayout, cc->ch_layout.nb_channels);
 
+    const int outRate = targetSampleRate_ > 0 ? targetSampleRate_ : cc->sample_rate;
+
     SwrContext* swr = nullptr;
-    int ret = swr_alloc_set_opts2(&swr, &outLayout, AV_SAMPLE_FMT_FLT, cc->sample_rate,
-                                  &cc->ch_layout, cc->sample_fmt, cc->sample_rate, 0, nullptr);
+    int ret = swr_alloc_set_opts2(&swr, &outLayout, AV_SAMPLE_FMT_FLT, outRate, &cc->ch_layout,
+                                  cc->sample_fmt, cc->sample_rate, 0, nullptr);
     av_channel_layout_uninit(&outLayout);
     if (ret < 0 || !swr)
         return false;
 
     swrCtx_.reset(swr);
     return swr_init(swrCtx_.get()) >= 0;
+}
+
+void FfmpegDecoder::setTargetSampleRate(int rate) {
+    targetSampleRate_ = rate;
 }
 
 std::vector<float> FfmpegDecoder::decode(size_t maxFrames) {

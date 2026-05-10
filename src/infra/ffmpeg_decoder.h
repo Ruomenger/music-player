@@ -30,6 +30,12 @@ public:
     void close() override;
     [[nodiscard]] AudioDecoderInfo info() const override;
 
+    // Configure the resampler's output sample rate. Pass 0 to disable rate
+    // conversion (output rate == file's native rate, the default). Must be
+    // called before open(); calling after open() has no effect on the active
+    // resampler.
+    void setTargetSampleRate(int rate);
+
 private:
     bool findAudioStream();
     bool openCodec();
@@ -54,6 +60,7 @@ private:
 
     AudioDecoderInfo info_;
     int streamIndex_ = -1;
+    int targetSampleRate_ = 0;  // 0 = use file's native rate
     bool eof_ = false;
 };
 
