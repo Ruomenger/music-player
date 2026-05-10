@@ -33,6 +33,11 @@ public:
     // stop: stop pulling, release native stream. Re-open required to play again.
     virtual bool stop() = 0;
 
+    // Set the data callback. MUST NOT be called while the stream is running:
+    // implementations are not required to provide an atomic swap, and the
+    // realtime audio thread reads the callback without synchronization.
+    // Safe call sites: before start(), or after a stop()/pause() that has
+    // actually halted the stream.
     virtual void setCallback(DataCallback callback) = 0;
 };
 

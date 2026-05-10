@@ -1,5 +1,6 @@
 #include "portaudio_output.h"
 
+#include <cassert>
 #include <cstring>
 #include <memory>
 
@@ -95,6 +96,11 @@ bool PortAudioOutput::stop() {
 }
 
 void PortAudioOutput::setCallback(DataCallback callback) {
+    // The realtime audio thread reads callback_ without synchronization;
+    // mutating it while the stream is running would tear. Enforce the
+    // IAudioOutput contract in debug builds.
+    assert((ctx_->stream == nullptr || Pa_IsStreamStopped(ctx_->stream) == 1) &&
+           "IAudioOutput::setCallback called while stream is running");
     callback_ = std::move(callback);
 }
 
