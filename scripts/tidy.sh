@@ -60,12 +60,15 @@ else
 fi
 echo "[tidy] build_dir=${BUILD_DIR}, parallel=${NPROC}, binary=${TIDY_BIN}"
 
+FILE_FILTER="^(?!.*/build/).*\.(cpp|h)$"
+
 if ! run-clang-tidy \
     -clang-tidy-binary "$TIDY_BIN" \
     -p "$BUILD_DIR" \
     -header-filter='.*src/.*' \
     -j "$NPROC" \
-    -quiet; then
+    -quiet \
+    "$FILE_FILTER"; then
     echo "[tidy] issues found (see above)"
     exit 1
 fi
