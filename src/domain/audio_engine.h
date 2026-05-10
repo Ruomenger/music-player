@@ -53,6 +53,12 @@ private:
     std::atomic<State> state_{State::Stopped};
     std::atomic<bool> decodeRunning_{false};
 
+    // Set by the decode thread when the decoder reports end-of-stream. The
+    // audio callback consults this once the ring buffer drains: if the buffer
+    // is empty and EOF is reached, it transitions Playing -> Stopped without
+    // calling any blocking output API (PortAudio forbids that from a callback).
+    std::atomic<bool> eofReached_{false};
+
     // Position tracking: callback only does fetch_add on framesPlayed_ (true atomic);
     // seek/start mutate both fields while the stream is paused (no race with callback).
     // Read side: position = (seekFrameOffset_ + framesPlayed_) / sampleRate.

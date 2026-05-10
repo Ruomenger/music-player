@@ -59,6 +59,16 @@ bool AudioEngine::open(const std::string& filePath) {
         if (read < totalSamples) {
             std::fill_n(buffer + read, totalSamples - read, 0.0f);
         }
+
+        // EOF reached and ring drained: transition to Stopped from the callback.
+        // Cleanup (Pa_StopStream, decoder->close) happens lazily on the next
+        // user-driven stop()/open() — we cannot call PortAudio APIs from here.
+        if (read == 0 && eofReached_.load(std::memory_order_acquire)) {
+            State expected = State::Playing;
+            state_.compare_exchange_strong(expected, State::Stopped, std::memory_order_acq_rel);
+            return;
+        }
+
         // Advance position by wallclock frames, not just by frames consumed.
         // Underruns (zero-fill) still elapse on the audio device, so position should advance.
         framesPlayed_.fetch_add(static_cast<uint64_t>(frameCount), std::memory_order_acq_rel);
@@ -73,6 +83,7 @@ void AudioEngine::play() {
         ringBuffer_.clear();
         framesPlayed_.store(0, std::memory_order_release);
         seekFrameOffset_.store(0, std::memory_order_release);
+        eofReached_.store(false, std::memory_order_release);
 
         startDecodeThread();
         if (!output_->start()) {
@@ -108,6 +119,7 @@ void AudioEngine::stop() {
     ringBuffer_.clear();
     framesPlayed_.store(0, std::memory_order_release);
     seekFrameOffset_.store(0, std::memory_order_release);
+    eofReached_.store(false, std::memory_order_release);
 
     if (decoder_)
         decoder_->close();
@@ -129,12 +141,14 @@ void AudioEngine::seek(double seconds) {
     const auto offsetFrames = static_cast<uint64_t>(std::max(0.0, seconds) * info_.sampleRate);
     seekFrameOffset_.store(offsetFrames, std::memory_order_release);
     framesPlayed_.store(0, std::memory_order_release);
+    eofReached_.store(false, std::memory_order_release);
 
+    // Always restart the decode thread so the ring buffer refills from the new position;
+    // this matters even when paused, otherwise resuming yields silence.
+    startDecodeThread();
     if (prev == State::Playing) {
-        startDecodeThread();
         output_->start();
     }
-    // If we were Paused, leave the stream paused; the next play() will resume it.
 }
 
 void AudioEngine::startDecodeThread() {
@@ -173,8 +187,10 @@ void AudioEngine::decodeLoop() {
         const size_t framesToDecode =
             std::min(free / static_cast<size_t>(info_.channels), kDecodeChunkFrames);
         auto samples = decoder_->decode(framesToDecode);
-        if (samples.empty())
+        if (samples.empty()) {
+            eofReached_.store(true, std::memory_order_release);
             break;
+        }
 
         const size_t written = ringBuffer_.write(samples.data(), samples.size());
         if (written < samples.size())
