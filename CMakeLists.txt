@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
+
 project(musicplayer
     VERSION 0.1.0
     DESCRIPTION "A cross-platform desktop music player built with Qt6 and C++23"

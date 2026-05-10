@@ -30,7 +30,9 @@
       "cacheVariables": {
         "VCPKG_TARGET_TRIPLET": "arm64-osx",
         "CMAKE_OSX_ARCHITECTURES": "arm64",
-        "CMAKE_PREFIX_PATH": "/opt/homebrew/opt/qt;/opt/homebrew/opt/portaudio"
+        "CMAKE_PREFIX_PATH": "/opt/homebrew/opt/qt;/opt/homebrew/opt/portaudio",
+        "CMAKE_C_COMPILER": "/opt/homebrew/opt/llvm/bin/clang",
+        "CMAKE_CXX_COMPILER": "/opt/homebrew/opt/llvm/bin/clang++"
       }
     },
     {
