@@ -27,6 +27,9 @@ add_domain_test(test_ring_buffer)
 
 add_infra_test(test_ffmpeg_decoder)
 add_infra_test(test_config_paths)
+# test_config_paths uses QDir/QStandardPaths directly; infra no longer
+# propagates Qt::Core (it's PRIVATE there), so link it explicitly here.
+target_link_libraries(test_config_paths PRIVATE Qt6::Core)
 add_infra_test(test_sqlite_song_repo)
 
 # Integration tests
