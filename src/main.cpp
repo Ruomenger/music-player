@@ -1,14 +1,21 @@
 #include "audio_engine.h"
+#include "constants.h"
 #include "ffmpeg_decoder.h"
 #include "portaudio_output.h"
 #include "ui/main_window.h"
 
 #include <QApplication>
+#include <QString>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <thread>
 
 namespace {
+
+QString toQString(std::string_view sv) {
+    return QString::fromUtf8(sv.data(), static_cast<qsizetype>(sv.size()));
+}
 
 int runCli(const std::string& filePath) {
     std::cout << "Playing: " << filePath << '\n';
@@ -56,9 +63,9 @@ int runCli(const std::string& filePath) {
 int main(int argc, char* argv[]) {
     try {
         QApplication app(argc, argv);
-        QApplication::setApplicationName("Music Player");
-        QApplication::setApplicationVersion("0.1.0");
-        QApplication::setOrganizationName("musicplayer");
+        QApplication::setApplicationName(toQString(musicplayer::kAppName));
+        QApplication::setApplicationVersion(toQString(musicplayer::kAppVersion));
+        QApplication::setOrganizationName(toQString(musicplayer::kAppOrg));
 
         if (argc > 2 && std::string(argv[1]) == "--play") {
             return runCli(argv[2]);

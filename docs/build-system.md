@@ -2,7 +2,7 @@
 
 ## 概述
 
-所有第三方依赖(除 Qt6 外)通过 vcpkg manifest mode 统一管理。Qt6 使用系统包管理器安装以保证工具链兼容性。
+第三方依赖通过 vcpkg manifest mode 统一管理。Qt6 例外，使用系统包管理器安装以保证工具链兼容性（vcpkg 编译 Qt 太重，且对 LGPL 静态链接处理也更复杂）。
 
 ## vcpkg 配置
 
@@ -14,22 +14,23 @@
   "version": "0.1.0",
   "dependencies": [
     "ffmpeg",
-    "gtest"
+    "gtest",
+    "portaudio"
   ]
 }
 ```
 
-> Qt6 和 PortAudio 使用系统包管理器安装，不纳入 vcpkg 管理。vcpkg 仅管理 ffmpeg / gtest。
+> Qt6 通过系统包管理器（brew / dnf）安装，不纳入 vcpkg。其余依赖（ffmpeg / gtest / portaudio）由 vcpkg 在首次 configure 时自动编译。
 
 ### 系统依赖
 
 #### Linux (Fedora x64)
 
 ```bash
-# Qt6 / PortAudio 开发包
-sudo dnf install -y qt6-qtbase-devel qt6-qtwayland portaudio-devel
+# Qt6 开发包
+sudo dnf install -y qt6-qtbase-devel qt6-qtwayland
 
-# 构建工具 + vcpkg 编译 ffmpeg 需要
+# 构建工具 + vcpkg 编译 ffmpeg / portaudio 需要
 sudo dnf install -y ninja-build nasm
 
 # Wayland 平台插件运行时依赖
@@ -39,10 +40,16 @@ sudo dnf install -y wayland-devel wayland-protocols-devel libxkbcommon-devel
 #### macOS (Apple Silicon)
 
 ```bash
-brew install qt portaudio ninja nasm
+# Qt6 + 构建工具
+brew install qt ninja nasm
+
+# C++23 工具链 (Apple Clang 对 std::format / ranges 支持滞后)
+brew install llvm
 ```
 
-> Homebrew 的 Qt 是 keg-only，CMakePresets 已通过 `CMAKE_PREFIX_PATH=/opt/homebrew/opt/qt;/opt/homebrew/opt/portaudio` 注入路径，无需手动 export。
+> Homebrew 的 Qt 是 keg-only，CMakePresets 已通过 `CMAKE_PREFIX_PATH=/opt/homebrew/opt/qt` 注入路径，无需手动 export。
+>
+> macOS preset 默认强制使用 brew LLVM 的 clang (`/opt/homebrew/opt/llvm/bin/clang++`) 而非 Apple Clang，原因是 C++23 / `<format>` / `<print>` / ranges 等特性在系统编译器上仍有缺口。CI 使用各平台默认编译器（不继承 macOS preset），不受影响。如果想换回 Apple Clang，在 `CMakeUserPresets.json` 里覆盖 `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER` 即可。
 
 ### Triplet 选择
 
@@ -79,7 +86,7 @@ cmake --preset linux-x64-debug \
 ## CMake 顶层结构
 
 ```cmake
-cmake_minimum_required(VERSION 3.31)
+cmake_minimum_required(VERSION 3.28)
 project(musicplayer VERSION 0.1.0 LANGUAGES CXX)
 
 # C++23
