@@ -26,6 +26,7 @@ add_domain_test(test_lyric_parser)
 add_domain_test(test_ring_buffer)
 
 add_infra_test(test_ffmpeg_decoder)
+add_infra_test(test_config_paths)
 
 # Integration tests
 add_executable(test_audio_pipeline integration/test_audio_pipeline.cpp)
