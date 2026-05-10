@@ -1,24 +1,35 @@
 #include "sqlite_song_repo.h"
 
+#include <stdexcept>
+
 namespace musicplayer {
 
-// Phase 2: stubs. Methods will use the SQLite handle once added; for now
-// silence "can be made static" since the eventual signature is non-static.
+namespace {
+
+[[noreturn]] void notImplemented(const char* method) {
+    throw std::logic_error(std::string("SqliteSongRepo::") + method +
+                           " is not implemented (Phase 2)");
+}
+
+}  // namespace
+
+// Phase 2: stubs that throw. Once a real SQLite handle becomes a member, these
+// methods will be non-static; silence "can be made static" until then.
 // NOLINTBEGIN(readability-convert-member-functions-to-static)
 bool SqliteSongRepo::initialize(const std::string& /*dbPath*/) {
-    return false;
+    notImplemented("initialize");
 }
 std::vector<SongInfo> SqliteSongRepo::getAllSongs() {
-    return {};
+    notImplemented("getAllSongs");
 }
 std::optional<SongInfo> SqliteSongRepo::getSongById(int /*id*/) {
-    return std::nullopt;
+    notImplemented("getSongById");
 }
 int SqliteSongRepo::insertSong(const SongInfo& /*song*/) {
-    return -1;
+    notImplemented("insertSong");
 }
 bool SqliteSongRepo::removeSong(int /*id*/) {
-    return false;
+    notImplemented("removeSong");
 }
 // NOLINTEND(readability-convert-member-functions-to-static)
 
