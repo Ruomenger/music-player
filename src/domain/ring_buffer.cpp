@@ -51,9 +51,13 @@ void RingBuffer<T>::clear() {
 
 template<typename T>
 size_t RingBuffer<T>::available() const {
-    size_t w = writeIdx_.load(std::memory_order_acquire);
-    size_t r = readIdx_.load(std::memory_order_acquire);
-    return (w >= r) ? (w - r) : (buffer_.size() - r + w);
+    // writeIdx_ / readIdx_ are monotonically increasing size_t; the buffer
+    // wraps via `& mask_` only at access sites (memcpy). The producer can't
+    // overrun the consumer by construction (write() gates on freeSlots()),
+    // so w >= r always holds and unsigned subtraction gives the real count.
+    const size_t w = writeIdx_.load(std::memory_order_acquire);
+    const size_t r = readIdx_.load(std::memory_order_acquire);
+    return w - r;
 }
 
 template<typename T>
