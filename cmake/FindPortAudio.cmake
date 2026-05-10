@@ -35,6 +35,11 @@ if(PortAudio_FOUND AND NOT TARGET PortAudio::PortAudio)
         IMPORTED_LOCATION "${PortAudio_LIBRARY}"
         INTERFACE_INCLUDE_DIRECTORIES "${PortAudio_INCLUDE_DIR}"
     )
+    if(APPLE)
+        set_target_properties(PortAudio::PortAudio PROPERTIES
+            INTERFACE_LINK_LIBRARIES "-framework CoreAudio -framework AudioUnit -framework CoreServices"
+        )
+    endif()
 endif()
 
 mark_as_advanced(PortAudio_INCLUDE_DIR PortAudio_LIBRARY)
