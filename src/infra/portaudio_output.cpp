@@ -98,4 +98,14 @@ void PortAudioOutput::setCallback(DataCallback callback) {
     callback_ = std::move(callback);
 }
 
+double PortAudioOutput::defaultSampleRate() const {
+    if (!initialized_)
+        return 0.0;
+    PaDeviceIndex dev = Pa_GetDefaultOutputDevice();
+    if (dev == paNoDevice)
+        return 0.0;
+    const PaDeviceInfo* info = Pa_GetDeviceInfo(dev);
+    return info != nullptr ? info->defaultSampleRate : 0.0;
+}
+
 }  // namespace musicplayer

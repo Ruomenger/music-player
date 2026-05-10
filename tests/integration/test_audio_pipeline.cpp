@@ -115,6 +115,29 @@ TEST(AudioPipeline, Seek) {
     engine.stop();
 }
 
+// Regression: AudioEngine::open() should configure the decoder to resample to
+// the audio device's preferred rate, so info().sampleRate matches what the
+// output stream is opened at — avoiding rejected-rate failures on platforms
+// where the audio device only supports specific rates.
+TEST(AudioPipeline, OpensDecoderAtOutputDeviceSampleRate) {
+    std::string path = testDataPath("test_rate_match.wav");
+    createSilentWav(path, 0.2);
+
+    auto output = std::make_unique<PortAudioOutput>();
+    const double deviceRate = output->defaultSampleRate();
+    if (deviceRate <= 0.0) {
+        GTEST_SKIP() << "no default audio output device on this host";
+    }
+
+    AudioEngine engine;
+    engine.setDecoder(std::make_unique<FfmpegDecoder>());
+    engine.setOutput(std::move(output));
+
+    ASSERT_TRUE(engine.open(path));
+    EXPECT_EQ(engine.info().sampleRate, static_cast<int>(deviceRate));
+    engine.stop();
+}
+
 // Regression: when the decoder reaches EOF, the engine must transition to
 // Stopped on its own once the ring buffer drains, instead of staying Playing
 // with the callback zero-filling forever.

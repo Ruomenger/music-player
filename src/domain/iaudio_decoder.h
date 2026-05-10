@@ -22,6 +22,12 @@ public:
     virtual bool seek(double seconds) = 0;
     virtual void close() = 0;
     [[nodiscard]] virtual AudioDecoderInfo info() const = 0;
+
+    // Configure the desired output sample rate before open(). Pass 0 to use
+    // the file's native rate (the default). After open(), info().sampleRate
+    // reports the post-resampling rate, which is what callers should use to
+    // configure the audio output.
+    virtual void setTargetSampleRate(int rate) = 0;
 };
 
 }  // namespace musicplayer

@@ -29,12 +29,7 @@ public:
     bool seek(double seconds) override;
     void close() override;
     [[nodiscard]] AudioDecoderInfo info() const override;
-
-    // Configure the resampler's output sample rate. Pass 0 to disable rate
-    // conversion (output rate == file's native rate, the default). Must be
-    // called before open(); calling after open() has no effect on the active
-    // resampler.
-    void setTargetSampleRate(int rate);
+    void setTargetSampleRate(int rate) override;
 
 private:
     bool findAudioStream();

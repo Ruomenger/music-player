@@ -21,6 +21,7 @@ public:
     bool pause() override;
     bool stop() override;
     void setCallback(DataCallback callback) override;
+    [[nodiscard]] double defaultSampleRate() const override;
 
     [[nodiscard]] const DataCallback& callback() const { return callback_; }
     [[nodiscard]] int channelCount() const { return channels_; }

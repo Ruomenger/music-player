@@ -18,6 +18,11 @@ public:
     // open: allocate native stream resources (does NOT begin pulling samples).
     virtual bool open(double sampleRate, int channels) = 0;
 
+    // defaultSampleRate: the audio device's preferred output rate (Hz). 0 if
+    // no device is available. Callers can use this to drive decoder-side
+    // resampling so the output never has to negotiate an unsupported rate.
+    [[nodiscard]] virtual double defaultSampleRate() const = 0;
+
     // start: begin pulling samples via the data callback.
     // Valid from "opened-but-not-running" or "paused".
     virtual bool start() = 0;

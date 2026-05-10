@@ -36,6 +36,13 @@ bool AudioEngine::open(const std::string& filePath) {
 
     stop();
 
+    // Drive the decoder at the audio device's preferred rate so we never need
+    // the output to negotiate a rate the device might reject (relevant on
+    // Linux ALSA / Windows WASAPI exclusive). If the device rate matches the
+    // file's native rate, swr's resampler is effectively a passthrough.
+    const double deviceRate = output_->defaultSampleRate();
+    decoder_->setTargetSampleRate(deviceRate > 0 ? static_cast<int>(deviceRate) : 0);
+
     if (!decoder_->open(filePath))
         return false;
     info_ = decoder_->info();
