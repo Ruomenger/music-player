@@ -1,6 +1,7 @@
 {
   "name": "music-player",
   "version": "0.1.0",
+  "builtin-baseline": "99a97de2cb9b8b84dca2aee7a0b1ab2c85aa83a5",
   "dependencies": [
     "ffmpeg",
     "gtest",
