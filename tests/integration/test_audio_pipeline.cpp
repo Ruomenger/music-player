@@ -50,7 +50,19 @@ void createSilentWav(const std::string& path, double durationSec) {
 
 }  // namespace
 
+namespace {
+
+void skipIfNoAudioDevice() {
+    PortAudioOutput probe;
+    if (probe.defaultSampleRate() <= 0.0) {
+        GTEST_SKIP() << "no audio output device available on this host";
+    }
+}
+
+}  // namespace
+
 TEST(AudioPipeline, OpenAndPlaySilence) {
+    skipIfNoAudioDevice();
     std::string path = testDataPath("test_pipeline.wav");
     std::filesystem::create_directories(testDataPath(""));
     createSilentWav(path, 0.5);
@@ -72,6 +84,7 @@ TEST(AudioPipeline, OpenAndPlaySilence) {
 }
 
 TEST(AudioPipeline, PauseAndResume) {
+    skipIfNoAudioDevice();
     std::string path = testDataPath("test_pause.wav");
     createSilentWav(path, 1.0);
 
@@ -98,6 +111,7 @@ TEST(AudioPipeline, PauseAndResume) {
 }
 
 TEST(AudioPipeline, Seek) {
+    skipIfNoAudioDevice();
     std::string path = testDataPath("test_seek_pipeline.wav");
     createSilentWav(path, 1.0);
 
@@ -142,6 +156,7 @@ TEST(AudioPipeline, OpensDecoderAtOutputDeviceSampleRate) {
 // Stopped on its own once the ring buffer drains, instead of staying Playing
 // with the callback zero-filling forever.
 TEST(AudioPipeline, ReachesStoppedAtEndOfStream) {
+    skipIfNoAudioDevice();
     std::string path = testDataPath("test_eof_pipeline.wav");
     createSilentWav(path, 0.2);
 
@@ -166,6 +181,7 @@ TEST(AudioPipeline, ReachesStoppedAtEndOfStream) {
 // next play() actually produces audio. Previously the decode thread was left
 // stopped and resuming yielded permanent silence with frozen position.
 TEST(AudioPipeline, SeekWhilePausedThenResumeAdvancesPosition) {
+    skipIfNoAudioDevice();
     std::string path = testDataPath("test_seek_paused.wav");
     createSilentWav(path, 1.0);
 
