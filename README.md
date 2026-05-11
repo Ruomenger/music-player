@@ -2,7 +2,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-blue.svg)](https://en.cppreference.com/w/cpp/23)
-[![Qt](https://img.shields.io/badge/Qt-6.10%2B-green.svg)](https://www.qt.io/)
+[![Qt](https://img.shields.io/badge/Qt-6.11%2B-green.svg)](https://www.qt.io/)
 [![CMake](https://img.shields.io/badge/CMake-3.31%2B-green.svg)](https://cmake.org/)
 
 跨平台桌面音乐播放器，使用 Qt6 + C++23 + CMake 构建，支持 Windows / macOS / Linux。
@@ -26,7 +26,7 @@
 | 类别 | 选型 |
 |------|------|
 | 语言 | C++23 |
-| UI | Qt 6.10+ (QtWidgets) |
+| UI | Qt 6.11+ (QtWidgets) |
 | 构建 | CMake 3.31+ |
 | 包管理 | vcpkg (manifest mode) |
 | 音频解码 | FFmpeg |
@@ -37,11 +37,12 @@
 
 ## 开发环境
 
-| 平台 | 编译器 | 已验证 |
-|------|--------|--------|
-| Fedora 43 | g++ 15 | ✓ |
-| macOS 15 (M2) | clang 20+ | ✓ |
-| Windows | MSVC 2022+ | 待验证 |
+| 平台 | 编译器 | 状态 |
+|------|--------|------|
+| Ubuntu 24.04 (x64 / ARM64) | GCC | CI ✓ |
+| Fedora 43 (x64) | GCC 15 | ✓ |
+| macOS 15 (Apple Silicon) | Clang (Homebrew LLVM 20+) | ✓ |
+| Windows 10/11 (x64) | MSVC 2022 (VS 17) | CI ✓ |
 
 IDE: VSCode / CLion
 
@@ -50,9 +51,12 @@ IDE: VSCode / CLion
 ### 前置依赖
 
 - CMake 3.31+
-- C++23 编译器 (g++15 / clang 20+ / MSVC 2022+)
-- [vcpkg](https://github.com/microsoft/vcpkg) (管理 ffmpeg / portaudio / gtest)
-- Qt6 通过系统包管理器安装
+- C++23 编译器：
+  - Linux：GCC 14+
+  - macOS：Clang 20+（Homebrew LLVM）
+  - Windows：MSVC 2022+（Visual Studio 17 或 Build Tools）
+- [vcpkg](https://github.com/microsoft/vcpkg)（管理 ffmpeg / portaudio / gtest；Windows 必须，Linux/macOS 可选）
+- Qt 6.11+（Linux/macOS 通过系统包管理器；Windows 通过 Qt 官方安装器）
 
 ### 安装依赖
 
