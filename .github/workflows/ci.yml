@@ -51,10 +51,11 @@ jobs:
             sudo tee /etc/apt/sources.list.d/llvm.list
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build clang-21 clang-tidy-21 clang-format-21 \
+            ninja-build clang-21 clang-tidy-21 clang-format-21 \
             qt6-base-dev libgtest-dev portaudio19-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
           sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 100
+          pip install cmake==4.3.2
       - name: Configure
         run: cmake --preset ci-debug
       - name: Run Clang-Tidy
@@ -102,8 +103,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build libgtest-dev portaudio19-dev \
+            ninja-build libgtest-dev portaudio19-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
+          pip install cmake==4.3.2
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
@@ -149,8 +151,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build qt6-base-dev libgtest-dev portaudio19-dev \
+            ninja-build qt6-base-dev libgtest-dev portaudio19-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
+          pip install cmake==4.3.2
       - name: Configure (ASan)
         run: cmake --preset ci-asan
       - name: Build
@@ -169,8 +172,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            cmake ninja-build qt6-base-dev libgtest-dev portaudio19-dev \
+            ninja-build qt6-base-dev libgtest-dev portaudio19-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev lcov
+          pip install cmake==4.3.2
       - name: Configure (Coverage)
         run: cmake --preset ci-coverage
       - name: Build
