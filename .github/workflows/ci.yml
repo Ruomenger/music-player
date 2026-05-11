@@ -123,6 +123,11 @@ jobs:
         with:
           arch: x64
 
+      - name: Install CMake (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: pip install cmake==4.3.2
+
       - name: Configure
         shell: bash
         run: |
