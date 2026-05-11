@@ -42,9 +42,11 @@
 | Ubuntu 24.04 (x64 / ARM64) | GCC | CI ✓ |
 | Fedora 43 (x64) | GCC 15 | ✓ |
 | macOS 15 (Apple Silicon) | Clang (Homebrew LLVM 20+) | ✓ |
-| Windows 10/11 (x64) | MSVC 2022 (VS 17) | CI ✓ |
+| Windows 10/11 (x64) | MSVC 2022 (VS 17) | CI ✓ (Qt 6.10.0¹) |
 
 IDE: VSCode / CLion
+
+> ¹ Windows CI 暂时使用 Qt 6.10.0，因 Qt 6.11.0 的 Windows 安装包尚未进入 aqtinstall 仓库，待发布后将统一升级。
 
 ## 快速开始
 
