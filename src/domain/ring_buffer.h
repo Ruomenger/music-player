@@ -16,11 +16,11 @@ public:
     size_t read(T* data, size_t count);
     void clear();
 
-    size_t available() const;
-    size_t freeSlots() const;
-    size_t capacity() const { return buffer_.size(); }
-    bool empty() const { return available() == 0; }
-    bool full() const { return freeSlots() == 0; }
+    [[nodiscard]] size_t available() const;
+    [[nodiscard]] size_t freeSlots() const;
+    [[nodiscard]] size_t capacity() const { return buffer_.size(); }
+    [[nodiscard]] bool empty() const { return available() == 0; }
+    [[nodiscard]] bool full() const { return freeSlots() == 0; }
 
 private:
     static constexpr size_t nextPowerOfTwo(size_t n);
