@@ -50,19 +50,20 @@ void createSilentWav(const std::string& path, double durationSec) {
 
 }  // namespace
 
-namespace {
-
-void skipIfNoAudioDevice() {
-    PortAudioOutput probe;
-    if (probe.defaultSampleRate() <= 0.0) {
-        GTEST_SKIP() << "no audio output device available on this host";
+class AudioPipelineTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        PortAudioOutput probe;
+        deviceRate_ = probe.defaultSampleRate();
+        if (deviceRate_ <= 0.0) {
+            GTEST_SKIP() << "no audio output device available on this host";
+        }
     }
-}
 
-}  // namespace
+    double deviceRate_ = 0.0;
+};
 
-TEST(AudioPipeline, OpenAndPlaySilence) {
-    skipIfNoAudioDevice();
+TEST_F(AudioPipelineTest, OpenAndPlaySilence) {
     std::string path = testDataPath("test_pipeline.wav");
     std::filesystem::create_directories(testDataPath(""));
     createSilentWav(path, 0.5);
@@ -83,8 +84,7 @@ TEST(AudioPipeline, OpenAndPlaySilence) {
     EXPECT_EQ(engine.state(), AudioEngine::State::Stopped);
 }
 
-TEST(AudioPipeline, PauseAndResume) {
-    skipIfNoAudioDevice();
+TEST_F(AudioPipelineTest, PauseAndResume) {
     std::string path = testDataPath("test_pause.wav");
     createSilentWav(path, 1.0);
 
@@ -110,8 +110,7 @@ TEST(AudioPipeline, PauseAndResume) {
     engine.stop();
 }
 
-TEST(AudioPipeline, Seek) {
-    skipIfNoAudioDevice();
+TEST_F(AudioPipelineTest, Seek) {
     std::string path = testDataPath("test_seek_pipeline.wav");
     createSilentWav(path, 1.0);
 
@@ -133,30 +132,25 @@ TEST(AudioPipeline, Seek) {
 // the audio device's preferred rate, so info().sampleRate matches what the
 // output stream is opened at — avoiding rejected-rate failures on platforms
 // where the audio device only supports specific rates.
-TEST(AudioPipeline, OpensDecoderAtOutputDeviceSampleRate) {
+TEST_F(AudioPipelineTest, OpensDecoderAtOutputDeviceSampleRate) {
     std::string path = testDataPath("test_rate_match.wav");
     createSilentWav(path, 0.2);
 
     auto output = std::make_unique<PortAudioOutput>();
-    const double deviceRate = output->defaultSampleRate();
-    if (deviceRate <= 0.0) {
-        GTEST_SKIP() << "no default audio output device on this host";
-    }
 
     AudioEngine engine;
     engine.setDecoder(std::make_unique<FfmpegDecoder>());
     engine.setOutput(std::move(output));
 
     ASSERT_TRUE(engine.open(path));
-    EXPECT_EQ(engine.info().sampleRate, static_cast<int>(deviceRate));
+    EXPECT_EQ(engine.info().sampleRate, static_cast<int>(deviceRate_));
     engine.stop();
 }
 
 // Regression: when the decoder reaches EOF, the engine must transition to
 // Stopped on its own once the ring buffer drains, instead of staying Playing
 // with the callback zero-filling forever.
-TEST(AudioPipeline, ReachesStoppedAtEndOfStream) {
-    skipIfNoAudioDevice();
+TEST_F(AudioPipelineTest, ReachesStoppedAtEndOfStream) {
     std::string path = testDataPath("test_eof_pipeline.wav");
     createSilentWav(path, 0.2);
 
@@ -180,8 +174,7 @@ TEST(AudioPipeline, ReachesStoppedAtEndOfStream) {
 // Regression: seek while Paused must keep the decode pipeline ready so the
 // next play() actually produces audio. Previously the decode thread was left
 // stopped and resuming yielded permanent silence with frozen position.
-TEST(AudioPipeline, SeekWhilePausedThenResumeAdvancesPosition) {
-    skipIfNoAudioDevice();
+TEST_F(AudioPipelineTest, SeekWhilePausedThenResumeAdvancesPosition) {
     std::string path = testDataPath("test_seek_paused.wav");
     createSilentWav(path, 1.0);
 
