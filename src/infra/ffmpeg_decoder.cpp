@@ -141,7 +141,7 @@ std::vector<float> FfmpegDecoder::decode(size_t maxFrames) {
     size_t framesWritten = 0;
     bool flushed = false;
 
-    auto writeOutput = [&](const uint8_t* const* srcData, int srcSamples) {
+    auto writeOutput = [&](const uint8_t** srcData, int srcSamples) {
         if (framesWritten >= maxFrames)
             return;
         const int wanted = static_cast<int>(maxFrames - framesWritten);
