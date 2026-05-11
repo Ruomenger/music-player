@@ -71,6 +71,7 @@ TEST(FfmpegDecoder, OpenWavFile) {
 
 TEST(FfmpegDecoder, DecodeProducesSamples) {
     std::string path = testDataPath("test_decode.wav");
+    std::filesystem::create_directories(testDataPath(""));
     createSilentWav(path, 0.2);
 
     FfmpegDecoder dec;
@@ -84,6 +85,7 @@ TEST(FfmpegDecoder, DecodeProducesSamples) {
 
 TEST(FfmpegDecoder, SeekAndDecode) {
     std::string path = testDataPath("test_seek.wav");
+    std::filesystem::create_directories(testDataPath(""));
     createSilentWav(path, 1.0);
 
     FfmpegDecoder dec;
@@ -127,6 +129,7 @@ TEST(FfmpegDecoder, ResamplesToTargetSampleRate) {
 
 TEST(FfmpegDecoder, DecodeAfterEofReturnsEmpty) {
     std::string path = testDataPath("test_eof.wav");
+    std::filesystem::create_directories(testDataPath(""));
     createSilentWav(path, 0.1);
 
     FfmpegDecoder dec;
