@@ -93,15 +93,9 @@ if(FFmpeg_FOUND AND NOT TARGET FFmpeg::avcodec)
     _create_ffmpeg_target(avutil)
     _create_ffmpeg_target(swresample)
 
-    set_target_properties(FFmpeg::avformat PROPERTIES
-        INTERFACE_LINK_LIBRARIES "FFmpeg::avcodec;FFmpeg::avutil"
-    )
-    set_target_properties(FFmpeg::avcodec PROPERTIES
-        INTERFACE_LINK_LIBRARIES "FFmpeg::avutil"
-    )
-    set_target_properties(FFmpeg::swresample PROPERTIES
-        INTERFACE_LINK_LIBRARIES "FFmpeg::avutil"
-    )
+    target_link_libraries(FFmpeg::avformat INTERFACE FFmpeg::avcodec FFmpeg::avutil)
+    target_link_libraries(FFmpeg::avcodec INTERFACE FFmpeg::avutil)
+    target_link_libraries(FFmpeg::swresample INTERFACE FFmpeg::avutil)
 
     set(FFMPEG_INCLUDE_DIRS ${FFMPEG_INCLUDE_DIR})
     set(FFMPEG_LIBRARIES

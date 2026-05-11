@@ -3,7 +3,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-blue.svg)](https://en.cppreference.com/w/cpp/23)
 [![Qt](https://img.shields.io/badge/Qt-6.11%2B-green.svg)](https://www.qt.io/)
-[![CMake](https://img.shields.io/badge/CMake-3.31%2B-green.svg)](https://cmake.org/)
+[![CMake](https://img.shields.io/badge/CMake-4.3.2%2B-green.svg)](https://cmake.org/)
 
 跨平台桌面音乐播放器，使用 Qt6 + C++23 + CMake 构建，支持 Windows / macOS / Linux。
 
@@ -27,7 +27,7 @@
 |------|------|
 | 语言 | C++23 |
 | UI | Qt 6.11+ (QtWidgets) |
-| 构建 | CMake 3.31+ |
+| 构建 | CMake 4.3.2+ |
 | 包管理 | vcpkg (manifest mode) |
 | 音频解码 | FFmpeg |
 | 音频输出 | PortAudio |
@@ -52,7 +52,7 @@ IDE: VSCode / CLion
 
 ### 前置依赖
 
-- CMake 3.31+
+- CMake 4.3.2+
 - C++23 编译器：
   - Linux：GCC 14+
   - macOS：Clang 20+（Homebrew LLVM）
