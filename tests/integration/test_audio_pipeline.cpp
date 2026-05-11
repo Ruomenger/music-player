@@ -50,6 +50,7 @@ void createSilentWav(const std::string& path, double durationSec) {
 
 }  // namespace
 
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 class AudioPipelineTest : public ::testing::Test {
 protected:
     void SetUp() override {
