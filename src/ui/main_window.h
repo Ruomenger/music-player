@@ -5,12 +5,15 @@
 #include "playlist_sidebar.h"
 #include "song_info.h"
 
+class QAction;
 class QLabel;
+class QMenu;
 
 namespace musicplayer {
 
 class ControlBar;
 class CoverWidget;
+class LanguageManager;
 class LibraryImporter;
 class LyricManager;
 class LyricWidget;
@@ -19,6 +22,7 @@ class PlaylistManager;
 class PlaylistSidebar;
 class PlaylistWidget;
 class SqlitePlayHistoryRepo;
+class SqliteSettingsRepo;
 class SqliteSongRepo;
 
 // Top-level window. Owns the UI widgets and wires them to the service objects
@@ -28,7 +32,7 @@ class MainWindow : public QMainWindow {
 public:
     MainWindow(SqliteSongRepo* songs, PlaylistManager* playlists, PlayerController* player,
                LibraryImporter* importer, LyricManager* lyrics, SqlitePlayHistoryRepo* history,
-               QWidget* parent = nullptr);
+               SqliteSettingsRepo* settings, LanguageManager* language, QWidget* parent = nullptr);
 
     // Refreshes the playlist view from the currently selected source.
     void refreshSongList();
@@ -37,10 +41,15 @@ public:
     // create / rename / delete signals.
     void refreshSidebar();
 
+protected:
+    void changeEvent(QEvent* event) override;
+
 private slots:
     void onAddFiles();
     void onAddFolder();
     void onAbout();
+    void onShowPreferences();
+    void onSettingsApplied();
     void onSongActivated(int songId);
     void onRemoveSongRequested(int songId);
     void onToggleFavorite(int songId);
@@ -57,6 +66,7 @@ private:
     void buildMenus();
     void buildLayout();
     void connectSignals();
+    void retranslateUi();
 
     SqliteSongRepo* songs_;
     PlaylistManager* playlists_;
@@ -64,6 +74,8 @@ private:
     LibraryImporter* importer_;
     LyricManager* lyrics_;
     SqlitePlayHistoryRepo* history_;
+    SqliteSettingsRepo* settings_;
+    LanguageManager* language_;
 
     ControlBar* controlBar_ = nullptr;
     PlaylistSidebar* sidebar_ = nullptr;
@@ -73,6 +85,15 @@ private:
     QLabel* titleLabel_ = nullptr;
     QLabel* artistLabel_ = nullptr;
     QLabel* statusLabel_ = nullptr;
+
+    QMenu* fileMenu_ = nullptr;
+    QMenu* helpMenu_ = nullptr;
+    QMenu* editMenu_ = nullptr;
+    QAction* addFilesAction_ = nullptr;
+    QAction* addFolderAction_ = nullptr;
+    QAction* preferencesAction_ = nullptr;
+    QAction* quitAction_ = nullptr;
+    QAction* aboutAction_ = nullptr;
 
     LibrarySource currentSource_ = LibrarySource::AllSongs;
     int currentPlaylistId_ = 0;  // valid when currentSource_ == UserPlaylist

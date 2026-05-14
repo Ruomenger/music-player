@@ -20,6 +20,7 @@
 #include "constants.h"
 #include "control_bar.h"
 #include "cover_widget.h"
+#include "language_manager.h"
 #include "library_importer.h"
 #include "lyric_manager.h"
 #include "lyric_widget.h"
@@ -28,8 +29,10 @@
 #include "playlist_manager.h"
 #include "playlist_sidebar.h"
 #include "playlist_widget.h"
+#include "settings_dialog.h"
 #include "song_info.h"
 #include "sqlite_play_history_repo.h"
+#include "sqlite_settings_repo.h"
 #include "sqlite_song_repo.h"
 
 namespace musicplayer {
@@ -54,14 +57,17 @@ QStringList audioFileFilters() {
 
 MainWindow::MainWindow(SqliteSongRepo* songs, PlaylistManager* playlists, PlayerController* player,
                        LibraryImporter* importer, LyricManager* lyrics,
-                       SqlitePlayHistoryRepo* history, QWidget* parent)
+                       SqlitePlayHistoryRepo* history, SqliteSettingsRepo* settings,
+                       LanguageManager* language, QWidget* parent)
     : QMainWindow(parent)
     , songs_(songs)
     , playlists_(playlists)
     , player_(player)
     , importer_(importer)
     , lyrics_(lyrics)
-    , history_(history) {
+    , history_(history)
+    , settings_(settings)
+    , language_(language) {
     setWindowTitle(toQString(kAppName));
     setMinimumSize(900, 600);
 
@@ -127,19 +133,54 @@ void MainWindow::buildLayout() {
 }
 
 void MainWindow::buildMenus() {
-    auto* fileMenu = menuBar()->addMenu(tr("&File"));
-    auto* addFilesAction = fileMenu->addAction(tr("Add Files…"));
-    connect(addFilesAction, &QAction::triggered, this, &MainWindow::onAddFiles);
-    auto* addFolderAction = fileMenu->addAction(tr("Add Folder…"));
-    connect(addFolderAction, &QAction::triggered, this, &MainWindow::onAddFolder);
-    fileMenu->addSeparator();
-    auto* quitAction = fileMenu->addAction(tr("&Quit"));
-    quitAction->setShortcut(QKeySequence::Quit);
-    connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
+    fileMenu_ = menuBar()->addMenu(QString());
+    addFilesAction_ = fileMenu_->addAction(QString());
+    connect(addFilesAction_, &QAction::triggered, this, &MainWindow::onAddFiles);
+    addFolderAction_ = fileMenu_->addAction(QString());
+    connect(addFolderAction_, &QAction::triggered, this, &MainWindow::onAddFolder);
+    fileMenu_->addSeparator();
+    quitAction_ = fileMenu_->addAction(QString());
+    quitAction_->setShortcut(QKeySequence::Quit);
+    connect(quitAction_, &QAction::triggered, qApp, &QApplication::quit);
 
-    auto* helpMenu = menuBar()->addMenu(tr("&Help"));
-    auto* aboutAction = helpMenu->addAction(tr("&About"));
-    connect(aboutAction, &QAction::triggered, this, &MainWindow::onAbout);
+    editMenu_ = menuBar()->addMenu(QString());
+    preferencesAction_ = editMenu_->addAction(QString());
+    preferencesAction_->setShortcut(QKeySequence::Preferences);
+    connect(preferencesAction_, &QAction::triggered, this, &MainWindow::onShowPreferences);
+
+    helpMenu_ = menuBar()->addMenu(QString());
+    aboutAction_ = helpMenu_->addAction(QString());
+    connect(aboutAction_, &QAction::triggered, this, &MainWindow::onAbout);
+
+    retranslateUi();
+}
+
+void MainWindow::retranslateUi() {
+    setWindowTitle(toQString(kAppName));
+    if (fileMenu_)
+        fileMenu_->setTitle(tr("&File"));
+    if (editMenu_)
+        editMenu_->setTitle(tr("&Edit"));
+    if (helpMenu_)
+        helpMenu_->setTitle(tr("&Help"));
+    if (addFilesAction_)
+        addFilesAction_->setText(tr("Add Files…"));
+    if (addFolderAction_)
+        addFolderAction_->setText(tr("Add Folder…"));
+    if (preferencesAction_)
+        preferencesAction_->setText(tr("Preferences…"));
+    if (quitAction_)
+        quitAction_->setText(tr("&Quit"));
+    if (aboutAction_)
+        aboutAction_->setText(tr("&About"));
+    if (statusLabel_ != nullptr && statusLabel_->text().isEmpty())
+        statusLabel_->setText(tr("Ready"));
+}
+
+void MainWindow::changeEvent(QEvent* event) {
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
+    QMainWindow::changeEvent(event);
 }
 
 void MainWindow::connectSignals() {
@@ -293,6 +334,30 @@ void MainWindow::onAbout() {
                        tr("%1 %2\nCross-platform desktop music player.")
                            .arg(toQString(kAppName))
                            .arg(toQString(kAppVersion)));
+}
+
+void MainWindow::onShowPreferences() {
+    SettingsDialog dlg(settings_, this);
+    connect(&dlg, &SettingsDialog::settingsApplied, this, &MainWindow::onSettingsApplied);
+    dlg.exec();
+}
+
+void MainWindow::onSettingsApplied() {
+    if (settings_ == nullptr)
+        return;
+    // Apply the side-effecty bits live so the user doesn't have to restart.
+    if (language_ != nullptr) {
+        const auto lang = settings_->getString("language").value_or("en");
+        language_->setLanguage(QString::fromStdString(lang));
+    }
+    if (lyrics_ != nullptr) {
+        lyrics_->setAutoLoadEnabled(settings_->getBool("auto_load_lyric").value_or(true));
+    }
+    // Output device requires reopening the engine to take effect; we
+    // surface that via the status bar rather than tearing playback down
+    // mid-song. PortAudioOutput::setPreferredDevice was already updated by
+    // main.cpp at startup; subsequent open() calls pick it up.
+    statusLabel_->setText(tr("Settings updated"));
 }
 
 void MainWindow::onSongActivated(int songId) {

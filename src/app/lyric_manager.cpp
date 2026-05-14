@@ -13,11 +13,15 @@ namespace musicplayer {
 LyricManager::LyricManager(QObject* parent) : QObject(parent) {}
 
 void LyricManager::loadForSong(const SongInfo& song) {
-    if (song.lyricPath.empty() || !song.hasLyric) {
+    if (!autoLoad_ || song.lyricPath.empty() || !song.hasLyric) {
         clear();
         return;
     }
     loadFromPath(QString::fromStdString(song.lyricPath));
+}
+
+void LyricManager::setAutoLoadEnabled(bool enabled) {
+    autoLoad_ = enabled;
 }
 
 void LyricManager::loadFromPath(const QString& path) {

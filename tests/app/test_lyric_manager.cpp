@@ -97,3 +97,22 @@ TEST(LyricManagerTest, ClearAfterLoadEmpties) {
     EXPECT_TRUE(mgr.lines().empty());
     EXPECT_EQ(mgr.currentLineIndex(), -1);
 }
+
+TEST(LyricManagerTest, AutoLoadDisabledSuppressesLoadForSong) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString lrc = dir.filePath(QStringLiteral("song.lrc"));
+    ASSERT_NO_FATAL_FAILURE(writeLrc(lrc, QStringLiteral("[00:01.00]hello\n")));
+
+    LyricManager mgr;
+    mgr.setAutoLoadEnabled(false);
+    SongInfo song;
+    song.hasLyric = true;
+    song.lyricPath = lrc.toStdString();
+    mgr.loadForSong(song);
+    EXPECT_TRUE(mgr.lines().empty());
+
+    // Manual loadFromPath still works regardless of the toggle.
+    mgr.loadFromPath(lrc);
+    EXPECT_EQ(mgr.lines().size(), 1U);
+}

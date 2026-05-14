@@ -170,14 +170,29 @@
 
 ## Phase 8: 设置和配置
 
-- [ ] 实现 `SettingsDialog` (读取 settings 表)
-- [ ] 实现语言切换 (中/英文, 动态切换)
-- [ ] 实现输出设备选择 (枚举 PortAudio 设备)
-- [ ] 实现默认音乐目录设置
-- [ ] 实现自动加载歌词开关
-- [ ] 实现播放历史保留天数设置
-- [ ] 编写翻译文件 `musicplayer_zh_CN.ts`
-- [ ] 验证: 修改设置→重启→设置保持; 切换语言→界面刷新
+- [x] 实现 `SettingsDialog` (QFormLayout: 语言/输出设备/音乐目录/自动加载歌词/
+      历史保留天数; 构造时从 SqliteSettingsRepo 读取, accept 写回 + 发
+      `settingsApplied` 信号)
+- [x] 实现语言切换 `LanguageManager` (QObject 包装 QTranslator; "en" 卸载,
+      "zh_CN" 加载 `:/translations/musicplayer_zh_CN.qm`; `setLanguage`
+      返回 bool, `languageChanged` 信号; MainWindow / SettingsDialog
+      `changeEvent(QEvent::LanguageChange)` + `retranslateUi()` 模式)
+- [x] 实现输出设备选择 (`PortAudioOutput::enumerateOutputDevices()` 静态;
+      实例 `setPreferredDevice(name)`; open 时按名查找 PaDevice, 不存在
+      时回退到默认设备并 qWarning)
+- [x] 实现默认音乐目录设置 (line edit + Browse… → QFileDialog)
+- [x] 实现自动加载歌词开关 (`LyricManager::setAutoLoadEnabled`; loadForSong
+      在关闭时变成 clear)
+- [x] 实现播放历史保留天数设置 (QSpinBox; main aboutToQuit 已按
+      `history_max_days` 调 `SqlitePlayHistoryRepo::purgeOlderThan`)
+- [x] 编写翻译文件 `musicplayer_zh_CN.ts` (~60 条: MainWindow/SettingsDialog/
+      NewPlaylistDialog/PlaylistSidebar/ControlBar/LyricWidget);
+      `qt6_add_translations` 在 src/CMakeLists.txt 跑 lrelease 并嵌入到
+      Qt 资源 `:/translations/`
+- [x] 验证: 184/184 测试通过 (新增 9 项: SettingsDialog × 4,
+      LanguageManager × 4, LyricManager 自动加载 × 1); main.cpp 启动按
+      `language` / `output_device` / `auto_load_lyric` 应用所有设置;
+      OK 后 SettingsDialog 实时刷新 LanguageManager + LyricManager
 
 ## Phase 9: 测试补全和优化
 

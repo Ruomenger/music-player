@@ -14,6 +14,7 @@
 #include "constants.h"
 #include "cover_cache.h"
 #include "ffmpeg_decoder.h"
+#include "language_manager.h"
 #include "library_importer.h"
 #include "lyric_manager.h"
 #include "player_controller.h"
@@ -81,13 +82,25 @@ int main(int argc, char* argv[]) {
         musicplayer::PlayerStateRepo playerState(db.connectionName());
         settings.seedDefaults();
 
+        // ── Language ─────────────────────────────────────────────────────────
+        // Install the translator before any widget is constructed so all
+        // initial labels render in the user's chosen language.
+        musicplayer::LanguageManager languageManager;
+        if (const auto lang = settings.getString("language"); lang)
+            languageManager.setLanguage(QString::fromStdString(*lang));
+
         // ── Audio + import services ──────────────────────────────────────────
         musicplayer::CoverCache covers(musicplayer::ConfigPaths::cacheDir() + "/covers");
         musicplayer::LibraryImporter importer(&songs, &covers);
 
         musicplayer::AudioEngine engine;
+        auto output = std::make_unique<musicplayer::PortAudioOutput>();
+        // Persisted preferred device must be applied before AudioEngine::open
+        // — the engine queries the output's default rate during open().
+        if (const auto dev = settings.getString("output_device"); dev && !dev->empty())
+            output->setPreferredDevice(*dev);
         engine.setDecoder(std::make_unique<musicplayer::FfmpegDecoder>());
-        engine.setOutput(std::make_unique<musicplayer::PortAudioOutput>());
+        engine.setOutput(std::move(output));
 
         if (const auto savedVolume = settings.getDouble("volume"); savedVolume)
             engine.setVolume(*savedVolume);
@@ -96,11 +109,13 @@ int main(int argc, char* argv[]) {
         musicplayer::PlayerController player(&engine, &songs, &history, &playerState);
         musicplayer::PlaylistManager playlistManager(&playlists);
         musicplayer::LyricManager lyricManager;
+        if (const auto autoLoad = settings.getBool("auto_load_lyric"); autoLoad)
+            lyricManager.setAutoLoadEnabled(*autoLoad);
         playlistManager.ensureFavoritesPlaylist();
 
         // ── UI ───────────────────────────────────────────────────────────────
         musicplayer::MainWindow window(&songs, &playlistManager, &player, &importer, &lyricManager,
-                                       &history);
+                                       &history, &settings, &languageManager);
         window.show();
 
         player.restoreLastSession();

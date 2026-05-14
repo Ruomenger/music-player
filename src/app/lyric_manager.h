@@ -22,9 +22,15 @@ public:
     [[nodiscard]] const std::vector<LyricLine>& lines() const { return lines_; }
     [[nodiscard]] int currentLineIndex() const { return currentIndex_; }
 
+    // Honors the `auto_load_lyric` user setting. When disabled, loadForSong
+    // becomes a no-op (the panel clears instead of reading the sidecar).
+    // Manual loadFromPath remains usable regardless.
+    void setAutoLoadEnabled(bool enabled);
+    [[nodiscard]] bool autoLoadEnabled() const { return autoLoad_; }
+
 public slots:
     // Loads lyrics for `song` from song.lyricPath. If the path is empty or
-    // unreadable, clears the lyric view.
+    // unreadable, clears the lyric view. No-op when autoLoadEnabled is false.
     void loadForSong(const SongInfo& song);
 
     // Loads from an arbitrary filesystem path. Used by the manual "Load
@@ -46,6 +52,7 @@ private:
 
     std::vector<LyricLine> lines_;
     int currentIndex_ = -1;
+    bool autoLoad_ = true;  // default reflects the seeded settings value
 };
 
 }  // namespace musicplayer

@@ -1,8 +1,12 @@
 #include "portaudio_output.h"
 
+#include <QtLogging>
+
 #include <cassert>
 #include <cstring>
 #include <memory>
+#include <string>
+#include <utility>
 
 extern "C" {
 #include <portaudio.h>
@@ -51,6 +55,27 @@ bool PortAudioOutput::open(double sampleRate, int channels) {
     PaStreamParameters params;
     std::memset(&params, 0, sizeof(params));
     params.device = Pa_GetDefaultOutputDevice();
+
+    // Honor the user's preferred device when one is set. Mismatches fall
+    // back to the default device — we don't want a stale preference (device
+    // unplugged, renamed by the OS) to prevent playback entirely.
+    if (!preferredDevice_.empty()) {
+        const PaDeviceIndex count = Pa_GetDeviceCount();
+        for (PaDeviceIndex i = 0; i < count; ++i) {
+            const PaDeviceInfo* info = Pa_GetDeviceInfo(i);
+            if (info != nullptr && info->maxOutputChannels > 0 && info->name != nullptr &&
+                preferredDevice_ == info->name) {
+                params.device = i;
+                break;
+            }
+        }
+        if (params.device == Pa_GetDefaultOutputDevice() &&
+            (Pa_GetDeviceInfo(params.device) == nullptr ||
+             preferredDevice_ != Pa_GetDeviceInfo(params.device)->name)) {
+            qWarning("PortAudioOutput: preferred device '%s' not found; falling back",
+                     preferredDevice_.c_str());
+        }
+    }
     if (params.device == paNoDevice)
         return false;
 
@@ -112,6 +137,34 @@ double PortAudioOutput::defaultSampleRate() const {
         return 0.0;
     const PaDeviceInfo* info = Pa_GetDeviceInfo(dev);
     return info != nullptr ? info->defaultSampleRate : 0.0;
+}
+
+void PortAudioOutput::setPreferredDevice(std::string deviceName) {
+    preferredDevice_ = std::move(deviceName);
+}
+
+std::vector<AudioOutputDeviceInfo> PortAudioOutput::enumerateOutputDevices() {
+    std::vector<AudioOutputDeviceInfo> result;
+    // Self-contained: callers can list devices without owning a
+    // PortAudioOutput instance. Pa_Initialize is refcounted, so balancing
+    // with Pa_Terminate here is safe even if the caller already has an
+    // initialized output object.
+    if (Pa_Initialize() != paNoError)
+        return result;
+    const PaDeviceIndex defaultDev = Pa_GetDefaultOutputDevice();
+    const PaDeviceIndex count = Pa_GetDeviceCount();
+    result.reserve(static_cast<std::size_t>(count));
+    for (PaDeviceIndex i = 0; i < count; ++i) {
+        const PaDeviceInfo* info = Pa_GetDeviceInfo(i);
+        if (info == nullptr || info->maxOutputChannels <= 0)
+            continue;
+        AudioOutputDeviceInfo entry;
+        entry.name = info->name != nullptr ? info->name : "";
+        entry.isDefault = (i == defaultDev);
+        result.push_back(std::move(entry));
+    }
+    Pa_Terminate();
+    return result;
 }
 
 }  // namespace musicplayer
