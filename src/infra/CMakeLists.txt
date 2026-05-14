@@ -5,6 +5,7 @@ add_library(musicplayer_infra STATIC
     sqlite_song_repo.cpp
     sqlite_playlist_repo.cpp
     sqlite_settings_repo.cpp
+    sqlite_play_history_repo.cpp
     player_state_repo.cpp
     config_paths.cpp
     cover_cache.cpp

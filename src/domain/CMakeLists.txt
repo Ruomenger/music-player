@@ -8,6 +8,7 @@ add_library(musicplayer_domain STATIC
     lyric_matcher.cpp
     lyric_parser.cpp
     music_scanner.cpp
+    play_queue.cpp
     playlist_model.cpp
     ring_buffer.cpp
 )

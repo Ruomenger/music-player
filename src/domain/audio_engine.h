@@ -34,10 +34,23 @@ public:
     void stop();
     void seek(double seconds);
 
+    // Linear gain applied in the realtime callback. Clamped to [0, 1].
+    // Default 1.0 (unity). atomic<float> is lock-free on every platform we
+    // target, so the callback's load is safe.
+    void setVolume(double volume);
+    [[nodiscard]] double volume() const {
+        return static_cast<double>(volume_.load(std::memory_order_acquire));
+    }
+
     [[nodiscard]] State state() const { return state_.load(std::memory_order_acquire); }
     [[nodiscard]] double currentPosition() const;
     [[nodiscard]] double duration() const { return info_.duration; }
     [[nodiscard]] const AudioDecoderInfo& info() const { return info_; }
+
+    // True after the decode thread reaches EOF. PlayerController consults this
+    // to distinguish "stopped because the user pressed stop" from "stopped
+    // because the file ended naturally" and auto-advances accordingly.
+    [[nodiscard]] bool eofReached() const { return eofReached_.load(std::memory_order_acquire); }
 
 private:
     void decodeLoop();
@@ -64,6 +77,8 @@ private:
     // Read side: position = (seekFrameOffset_ + framesPlayed_) / sampleRate.
     std::atomic<uint64_t> framesPlayed_{0};
     std::atomic<uint64_t> seekFrameOffset_{0};
+
+    std::atomic<float> volume_{1.0F};
 };
 
 }  // namespace musicplayer

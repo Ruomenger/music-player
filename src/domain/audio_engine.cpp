@@ -22,6 +22,11 @@ void AudioEngine::setOutput(std::unique_ptr<IAudioOutput> output) {
     output_ = std::move(output);
 }
 
+void AudioEngine::setVolume(double volume) {
+    const float clamped = std::clamp(static_cast<float>(volume), 0.0F, 1.0F);
+    volume_.store(clamped, std::memory_order_release);
+}
+
 double AudioEngine::currentPosition() const {
     if (info_.sampleRate <= 0)
         return 0.0;
@@ -78,6 +83,14 @@ bool AudioEngine::open(const std::string& filePath) {
             static_cast<int>(ringBuffer_.read(buffer, static_cast<size_t>(totalSamples)));
         if (read < totalSamples) {
             std::fill_n(buffer + read, totalSamples - read, 0.0f);
+        }
+
+        // Apply volume after reading. Skip the loop for the common case
+        // where vol == 1.0 to keep the unity-gain path branch-free.
+        const float vol = volume_.load(std::memory_order_acquire);
+        if (vol != 1.0F) {
+            for (int i = 0; i < read; ++i)
+                buffer[i] *= vol;
         }
 
         // EOF reached and ring drained: transition to Stopped from the callback.

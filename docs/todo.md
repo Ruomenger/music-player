@@ -89,16 +89,23 @@
 
 ## Phase 4: 播放器控制器 (Application Layer)
 
-- [ ] 实现 `PlayMode` 枚举和状态机 (Single/Sequential/ListLoop/Random)
-- [ ] 实现 `PlayerController` (play/pause/resume/stop/next/prev/seek/volume)
-- [ ] 实现 Random 模式的 Fisher-Yates shuffle + 游标算法
-- [ ] 实现播放队列管理 (当前播放列表 + 播放索引)
-- [ ] 实现播放位置 QTimer (emits positionChanged every ~250ms)
-- [ ] 实现播放历史记录 (写入 play_history 表)
-- [ ] 实现启动时恢复上次播放状态
-- [ ] 实现关闭时保存播放状态
-- [ ] 编写 `test_play_mode.cpp`
-- [ ] 编写 `test_playlist_model.cpp`
+- [x] 实现 `PlayMode` 枚举 + 行为表 (`domain/play_queue.h`)
+- [x] 实现 `PlayerController` (play/pause/resume/stop/next/prev/seek + setVolume +
+      setPlayMode + restoreLastSession/persistSession)
+- [x] 实现 Random 模式的 Fisher-Yates shuffle + 游标算法 (PlayQueue)
+- [x] 实现播放队列管理 (`PlayQueue`: setSongs / setCurrent / advanceNatural /
+      advanceManual / retreatManual; 切换模式时保留当前歌曲位置)
+- [x] 实现播放位置 QTimer (~250ms 触发 positionChanged + state 变化检测)
+- [x] 实现播放历史记录 (`SqlitePlayHistoryRepo` + PlayerController 在
+      ≥30s 或自然结束时写入 play_history)
+- [x] 实现启动时恢复上次播放状态 (`restoreLastSession` 走 PlayerStateRepo)
+- [x] 实现关闭时保存播放状态 (`persistSession`)
+- [x] `AudioEngine::setVolume` (atomic&lt;float&gt; + callback 内乘法,
+      跳过 vol==1.0 的单位增益路径) + `eofReached()` getter 供 controller
+      区分用户 stop 与自然结束
+- [x] 编写 `test_play_queue.cpp` (4 个模式 + 列表变更 + 游标跳转, 15 个用例)
+- [x] 编写 `test_sqlite_play_history_repo.cpp` / `test_player_controller.cpp`
+      (使用 FakeDecoder + FakeOutput 验证 API 表面)
 
 ## Phase 5: 基础 UI (Qt Widgets)
 
