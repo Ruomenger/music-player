@@ -40,64 +40,107 @@
 ### Domain Layer
 
 ```cpp
-// 歌曲信息值对象
+// 歌曲值对象 (src/domain/song_info.h). 字段顺序与 SQLite songs 表对齐，
+// Phase 3 的 scanner / metadata extractor 直接把抽到的内容写进来再交给
+// SqliteSongRepo 落库。
 struct SongInfo {
-    int id;
+    int id = 0;
     std::string title;
     std::string artist;
     std::string album;
+    std::string albumArtist;
+    std::string composer;
+    std::string genre;
+    int year = 0;
+    int trackNumber = 0;
+    int discNumber = 0;
     std::string filePath;
-    double duration;
+    std::int64_t fileSize = 0;
+    std::int64_t fileMtime = 0;
+    double duration = 0.0;
     std::string format;
-    // lyric info
+    int bitrate = 0;
+    int sampleRate = 0;
+    int channels = 2;
+    std::string coverPath;
     std::string lyricPath;
-    bool hasLyric;
+    bool hasLyric = false;
 };
 
 // 播放模式枚举
-enum class PlayMode { Single, Sequential, ListLoop, Random };
+enum class PlayMode : std::uint8_t { Single, Sequential, ListLoop, Random };
 
-// 环形缓冲区 (线程安全, SPSC)
+// 环形缓冲区 (lock-free SPSC, 详见 src/domain/ring_buffer.h)
 template<typename T>
 class RingBuffer { /* ... */ };
+
+// 播放队列 + 模式策略 (src/domain/play_queue.h). PlayerController 把
+// 「下一首选谁」的决策委托给它；Random 模式的 Fisher-Yates shuffle 也在
+// 这里。详见 "播放模式行为" 一节。
+class PlayQueue { /* ... */ };
 ```
 
 ### Application Layer
 
-> **状态：Phase 4 设计稿。** `PlayerController` / `PlaylistManager` /
-> `LyricManager` 当前是空 placeholder 类，仅声明 Q_OBJECT 和构造函数。
-> 下面的 API 是 Phase 4 启动时要实现的目标接口。
-
 ```cpp
-// PlayerController - 播放器核心控制器
+// PlayerController (src/app/player_controller.h) - 协调 AudioEngine、
+// PlayQueue 与三个仓库，是 UI 调用的入口。
 class PlayerController : public QObject {
     Q_OBJECT
 public:
-    void play(int songId);
+    PlayerController(AudioEngine* engine, SqliteSongRepo* songs,
+                     SqlitePlayHistoryRepo* history, PlayerStateRepo* playerState,
+                     QObject* parent = nullptr);
+
+    void play(int songId);                                          // 单曲播放
+    void playQueue(const std::vector<int>& songIds, std::size_t startIndex);
     void resume();
     void pause();
     void stop();
-    void next();
+    void next();                                                    // 用户手动
     void previous();
     void seek(double seconds);
-    void setVolume(double volume);       // 0.0 - 1.0
+    void setVolume(double volume);                                  // 0.0 - 1.0
     void setPlayMode(PlayMode mode);
 
+    void restoreLastSession();                                      // 启动时调
+    void persistSession(int playlistId = 0);                        // 退出时调
+
 signals:
-    void stateChanged(PlaybackState state);
+    // PlaybackState 用 int 序列化（Qt 信号要求注册元类型；用 int 省掉
+    // Q_DECLARE_METATYPE / qRegisterMetaType 的样板，UI 端 static_cast 回
+    // AudioEngine::State 即可）
+    void stateChanged(int state);
     void positionChanged(double current, double total);
     void currentSongChanged(const SongInfo& song);
     void volumeChanged(double volume);
-    void playModeChanged(PlayMode mode);
+    void playModeChanged(int mode);                                 // 同上
     void errorOccurred(const QString& message);
 
 private:
-    std::unique_ptr<AudioEngine> engine_;        // domain
-    PlayMode mode_;
-    int currentSongId_;
-    QTimer positionTimer_;  // ~250ms interval
+    AudioEngine* engine_;                  // 非拥有指针，main() 持有
+    SqliteSongRepo* songs_;
+    SqlitePlayHistoryRepo* history_;
+    PlayerStateRepo* playerState_;
+    PlayQueue queue_;
+    QTimer positionTimer_;                 // ~250ms 间隔
 };
 ```
+
+PlayerController 不再自己 own `AudioEngine` —— main.cpp 在更高层组装
+engine / decoder / output 之后通过指针注入，便于测试时换成 FakeDecoder /
+FakeOutput（参见 `tests/app/test_player_controller.cpp`）。
+
+### Application Layer 其他构件
+
+- `PlaylistManager` (src/app/playlist_manager.h) — `SqlitePlaylistRepo`
+  的 QObject 封装；除常规 CRUD 之外提供 `toggleFavorite` / `isFavorite`
+  + `favoriteChanged(songId, bool)` 信号，封装系统歌单 "我喜欢"。
+- `LyricManager` (src/app/lyric_manager.h) — 加载并缓存 `ParsedLyrics`，
+  `updatePosition` 在每个 250ms tick 更新当前行；`setAutoLoadEnabled(false)`
+  让 `loadForSong` 变成 clear（对应 settings 中的 `auto_load_lyric`）。
+- `LanguageManager` (src/app/language_manager.h) — 切换 QTranslator；
+  详见 [i18n.md](i18n.md)。
 
 ### Infrastructure Layer 接口
 
@@ -149,19 +192,17 @@ public:
     virtual void setCallback(DataCallback cb) = 0;
 };
 
-// Repository abstractions (Phase 2). Currently the concrete SqliteSongRepo
-// is a Phase 2 stub that throws std::logic_error from every method.
-class ISongRepository {
-public:
-    virtual ~ISongRepository() = default;
-    virtual std::vector<SongInfo> getAllSongs() = 0;
-    virtual std::optional<SongInfo> getSongById(int id) = 0;
-    virtual int insertSong(const SongInfo& song) = 0;
-    // ...
-};
-
-class IPlaylistRepository { /* ... */ };
-class ISettingsRepository { /* ... */ };
+// 仓库都是具体类 —— 没有抽象 ISongRepository 之类的接口层。Phase 2 设计
+// 阶段考虑过，但实际只引入了一个 SQLite 实现，YAGNI；要换底层时再抽。
+//
+// 当前 infra 仓库类（每个都接受 connectionName 参数，由 SqliteDatabase 管
+// 理连接生命周期）：
+class SqliteDatabase     { /* PRAGMAs + CREATE TABLE 迁移 */ };
+class SqliteSongRepo     { /* songs */ };
+class SqlitePlaylistRepo { /* playlists + playlist_songs (含 reorder) */ };
+class SqliteSettingsRepo { /* settings key/value + seedDefaults */ };
+class SqlitePlayHistoryRepo { /* play_history + recent + purgeOlderThan */ };
+class PlayerStateRepo    { /* 单行 player_state，UPSERT */ };
 ```
 
 ## 播放模式行为
@@ -178,9 +219,14 @@ class ISettingsRepository { /* ... */ };
 ### Random 实现要点
 
 - 用 Fisher-Yates 一次性 shuffle 整个列表为 `shuffleQueue_`
-- 维护 `shuffleCursor_` 指向当前位置；next 即 `++cursor`，prev 即 `--cursor`
-- `cursor == queue.size()` 时重新 shuffle（保证不会立刻重复刚听过的几首）
-- 列表内容变化（添加/删除/换列表）时丢弃 shuffleQueue_ 重洗
+- 维护 `cursor_` 指向当前位置；`advanceManual` / `advanceNatural` 即 `++cursor`，
+  `retreatManual` 即 `--cursor`（不会越过 0，防止「上一首」翻越 shuffle 历史）
+- `cursor_ + 1 >= shuffleQueue_.size()` 时重新 shuffle 并把 cursor 重置为 0
+- 列表内容变化（`setSongs`）时丢弃 shuffleQueue_，再次进入 Random 重洗
+- `setMode(Random)` 切入时如果有当前播放曲，会在新的 shuffleQueue_ 里找到
+  它并把 cursor 落在那里，让「切换播放模式不打断当前曲」成立
+- 测试可调 `seedForTesting(seed)` 把 RNG 固定，避免输出不确定（见
+  `tests/domain/test_play_queue.cpp`）
 
 ## 线程模型
 

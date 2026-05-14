@@ -53,13 +53,23 @@ brew install llvm
 
 ### Triplet 选择
 
-| 平台 | Triplet | Preset |
-|------|---------|--------|
-| Fedora 43 (x64) | `x64-linux` | `linux-x64-{debug,release}` |
-| macOS 15 (ARM M2) | `arm64-osx` | `macos-arm64-{debug,release}` |
-| Windows (x64) | `x64-windows` | (待添加) |
+| 平台 | Triplet | 平台 preset | CI preset |
+|------|---------|------------|-----------|
+| Fedora 43 (x64) | `x64-linux` | `linux-x64-{debug,release}` | `ci-debug` / `ci-asan` / `ci-coverage` |
+| macOS 15 (ARM M2) | `arm64-osx` | `macos-arm64-{debug,release}` | 同上 |
+| Windows (x64) | `x64-windows` | (待添加) | 同上 |
 
 默认使用动态链接 triplet。如需静态链接, 使用 `x64-linux-static` 等，但需要注意 Qt 的 LGPL 协议限制。
+
+### CI preset 与平台 preset 的差别
+
+- 平台 preset (`linux-x64-*` / `macos-arm64-*`) 注入 `CMAKE_TOOLCHAIN_FILE`
+  指向 `$HOME/vcpkg`，并在 macOS 上锁死 brew LLVM clang。给开发机用。
+- CI preset (`ci-debug` / `ci-asan` / `ci-coverage`) 不假设 vcpkg 路径
+  （CI 用 GitHub Actions cache 在别处装 vcpkg），用 host 默认编译器。
+  `ci-asan` 加 `-fsanitize=address,undefined`，`ci-coverage` 加 `--coverage`。
+  这三个 preset 把 `binaryDir` 改到 `build/${presetName}` 而非 `build`，
+  让 sanitizer/coverage 的产物与本地 debug 构建并存。
 
 ### 配置步骤
 
@@ -86,7 +96,7 @@ cmake --preset linux-x64-debug \
 ## CMake 顶层结构
 
 ```cmake
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 4.3.2)
 project(musicplayer VERSION 0.1.0 LANGUAGES CXX)
 
 # C++23
@@ -103,9 +113,14 @@ set(CMAKE_AUTOUIC OFF)  # 不使用 .ui 文件
 include(cmake/CompilerWarnings.cmake)
 
 # 查找依赖
-find_package(Qt6 COMPONENTS Widgets Sql REQUIRED)
+# - Core: 基础设施 (QString / QObject 等)
+# - Widgets: UI 层
+# - Sql: 数据库仓库 (SqliteDatabase 等)
+# - Test: QSignalSpy / QTest (UI 测试)
+# - LinguistTools: 提供 qt6_add_translations + lrelease (Phase 8 i18n)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Sql Test LinguistTools)
 # vcpkg 的 FFmpeg 提供 FindFFMPEG.cmake (变量模式, 非 target)
-find_package(FFMPEG REQUIRED)
+find_package(FFmpeg REQUIRED)
 find_package(PortAudio REQUIRED)
 find_package(GTest REQUIRED)
 
@@ -116,92 +131,121 @@ add_subdirectory(tests)
 
 ## 依赖分模块构建
 
-### src/CMakeLists.txt
+四层分别建 STATIC 库, 最后 `add_executable(musicplayer)` 链 UI 层；每层
+CMakeLists 单独一个文件（`src/<layer>/CMakeLists.txt`）。下面是简化骨架，
+具体文件列表参见 `project-structure.md` —— 每加一层新源文件都要在该层的
+CMakeLists 里加一行。
 
 ```cmake
-# Domain 层 - 无 Qt 依赖
+# Domain 层 - 无 Qt 依赖 (src/domain/CMakeLists.txt)
 add_library(musicplayer_domain STATIC
-    domain/audio_engine.cpp
-    domain/lyric_parser.cpp
-    domain/playlist_model.cpp
+    audio_decoder_info.cpp audio_engine.cpp iaudio_decoder.cpp iaudio_output.cpp
+    lyric_matcher.cpp lyric_parser.cpp music_scanner.cpp play_queue.cpp
+    playlist.cpp playlist_model.cpp ring_buffer.cpp song_info.cpp
+    # audio_extensions.h 是 header-only, 不在源列表
 )
-target_include_directories(musicplayer_domain PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(musicplayer_domain PUBLIC musicplayer_common)
 
-# Infrastructure 层
+# Infrastructure 层 (src/infra/CMakeLists.txt)
+# Qt::Core / Qt::Sql / FFmpeg / PortAudio 标 PRIVATE, 不让 Qt 类型外溢到上层 .h
 add_library(musicplayer_infra STATIC
-    infra/ffmpeg_decoder.cpp
-    infra/portaudio_output.cpp
-    infra/sqlite_song_repo.cpp
-    infra/sqlite_playlist_repo.cpp
-    infra/sqlite_settings_repo.cpp
-    infra/config_paths.cpp
+    config_paths.cpp cover_cache.cpp ffmpeg_decoder.cpp library_importer.cpp
+    metadata_extractor.cpp player_state_repo.cpp portaudio_output.cpp
+    sqlite_database.cpp sqlite_play_history_repo.cpp sqlite_playlist_repo.cpp
+    sqlite_settings_repo.cpp sqlite_song_repo.cpp
 )
-target_include_directories(musicplayer_infra PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(musicplayer_infra PUBLIC
-    musicplayer_domain
-    FFMPEG::FFMPEG
-    PortAudio::PortAudio
-    Qt6::Sql
+target_link_libraries(musicplayer_infra
+    PUBLIC  musicplayer_domain
+    PRIVATE Qt6::Core Qt6::Sql FFmpeg::avcodec FFmpeg::avformat FFmpeg::avutil
+            FFmpeg::swresample PortAudio::PortAudio
 )
 
-# Application 层
+# Application 层 (src/app/CMakeLists.txt)
 add_library(musicplayer_app STATIC
-    app/player_controller.cpp
-    app/playlist_manager.cpp
-    app/lyric_manager.cpp
+    language_manager.cpp lyric_manager.cpp player_controller.cpp playlist_manager.cpp
 )
-target_link_libraries(musicplayer_app PUBLIC
-    musicplayer_domain
-    musicplayer_infra
-    Qt6::Core
-)
+target_link_libraries(musicplayer_app PUBLIC musicplayer_domain musicplayer_infra Qt6::Core)
 
-# UI 层 + 主可执行文件
-add_executable(musicplayer
-    main.cpp
-    ui/main_window.cpp
-    ui/playlist_widget.cpp
-    ui/lyric_widget.cpp
-    ui/control_bar.cpp
-    ui/cover_widget.cpp
-    ui/settings_dialog.cpp
+# UI 层 + 主可执行文件 (src/ui/CMakeLists.txt + src/CMakeLists.txt)
+add_library(musicplayer_ui STATIC
+    control_bar.cpp cover_widget.cpp lyric_widget.cpp main_window.cpp
+    new_playlist_dialog.cpp playlist_sidebar.cpp playlist_widget.cpp
+    settings_dialog.cpp song_table_model.cpp
 )
-target_link_libraries(musicplayer PRIVATE
-    musicplayer_app
-    Qt6::Widgets
+target_link_libraries(musicplayer_ui PUBLIC musicplayer_app Qt6::Widgets)
+
+# src/CMakeLists.txt 里:
+add_executable(musicplayer main.cpp)
+target_link_libraries(musicplayer PRIVATE musicplayer_ui compiler_warnings)
+qt6_add_translations(musicplayer
+    TS_FILES ${CMAKE_SOURCE_DIR}/resources/translations/musicplayer_zh_CN.ts
+    RESOURCE_PREFIX "/translations"
+    LUPDATE_OPTIONS "-no-obsolete"
 )
 ```
 
 ### tests/CMakeLists.txt
 
+实际 tests/CMakeLists.txt 通过四个 macro 把"测试目录 / 链接哪些库 / 用哪个
+main" 三件事打包起来，调用站点只剩 `add_xxx_test(name)`：
+
 ```cmake
-# 每个测试一个可执行文件
-add_executable(test_lyric_parser
-    domain/test_lyric_parser.cpp
-)
-target_link_libraries(test_lyric_parser PRIVATE
-    musicplayer_domain
-    GTest::gtest
-    GTest::gtest_main
-)
+# Domain-only: 纯 gtest_main, 无 Qt 依赖。
+macro(add_domain_test name)
+    add_executable(${name} domain/${name}.cpp)
+    target_link_libraries(${name} PRIVATE musicplayer_domain GTest::gtest GTest::gtest_main)
+    gtest_discover_tests(${name})
+endmacro()
 
-add_executable(test_playlist_model
-    domain/test_playlist_model.cpp
-)
-target_link_libraries(test_playlist_model PRIVATE
-    musicplayer_domain
-    GTest::gtest
-    GTest::gtest_main
-)
+# Infra: 还是 gtest_main, 但链 infra 库 (拉入 Qt::Sql 等 PRIVATE 传不出来的依赖)
+macro(add_infra_test name) ... endmacro()
 
-# ... 更多测试
+# Qt::Core 测试: 走 qt_test_main.cpp, 在 GTest main 里建一个 QCoreApplication。
+# QSqlDatabase / QStandardPaths 这些"需要 QCoreApplication" 的 API 走这条路。
+macro(add_qt_infra_test name)
+    add_executable(${name} infra/${name}.cpp qt_test_main.cpp)
+    target_link_libraries(${name} PRIVATE musicplayer_infra musicplayer_domain
+                                          Qt6::Core GTest::gtest)
+    gtest_discover_tests(${name})
+endmacro()
 
-enable_testing()
-include(GoogleTest)
-gtest_discover_tests(test_lyric_parser)
-gtest_discover_tests(test_playlist_model)
-# ...
+# Application 层: 把 musicplayer_app 链进来; 否则同 Qt-infra
+macro(add_qt_app_test name) ... endmacro()
+
+# UI 层: 用 qt_widget_test_main.cpp 建一个 QApplication, 并通过 setenv()
+# 强制 QT_QPA_PLATFORM=offscreen, 让测试在无显示环境 (CI / SSH) 也能跑。
+macro(add_qt_widget_test name) ... endmacro()
 ```
+
+调用举例（实际文件里类似的有 30 多条）：
+
+```cmake
+add_domain_test(test_play_queue)
+add_qt_infra_test(test_sqlite_song_repo)
+add_qt_app_test(test_player_controller)
+add_qt_widget_test(test_control_bar)
+```
+
+## i18n: qt6_add_translations
+
+`src/CMakeLists.txt` 顶层在创建 `musicplayer` 可执行之后调一次
+`qt6_add_translations` (Qt 6.7+, 需 `LinguistTools` 组件)：
+
+```cmake
+qt6_add_translations(musicplayer
+    TS_FILES
+        ${CMAKE_SOURCE_DIR}/resources/translations/musicplayer_zh_CN.ts
+    RESOURCE_PREFIX "/translations"
+    LUPDATE_OPTIONS "-no-obsolete"
+)
+```
+
+- `lrelease` 自动跑，输出 `musicplayer_zh_CN.qm`
+- 生成的 .qm 自动打进 Qt 资源系统，加载路径就是
+  `:/translations/musicplayer_zh_CN.qm`（这正是 `LanguageManager::setLanguage`
+  里 `translator_.load(...)` 用的路径）
+- `RESOURCE_PREFIX` 与 `QM_FILES_OUTPUT_VARIABLE` 互斥，二选一
+- `-no-obsolete` 让 lupdate 删除已被移除的源字符串而不是标 `<obsolete>`
 
 ## IDE 配置
 

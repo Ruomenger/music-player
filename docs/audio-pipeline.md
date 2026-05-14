@@ -230,6 +230,71 @@ PortAudio 回调跑在 OS 实时音频线程，**必须做到**：
 
 跨平台 Host API 由 PortAudio 自动选择 (Linux: PulseAudio/ALSA, macOS: CoreAudio, Windows: WASAPI)。
 
+### 输出设备枚举 (Phase 8)
+
+```cpp
+struct AudioOutputDeviceInfo {
+    std::string name;
+    bool isDefault;
+};
+
+// 静态方法：不需要先持有 PortAudioOutput 实例（内部自管理
+// Pa_Initialize / Pa_Terminate）。
+static std::vector<AudioOutputDeviceInfo>
+PortAudioOutput::enumerateOutputDevices();
+
+// 实例方法：把"用户偏好"设备名记下来，open() 时按名匹配 PaDevice；
+// 名字不再存在（设备拔了 / OS 改名了）时回退到默认设备并 qWarning，
+// 不阻断播放。空字符串 = 用 Pa_GetDefaultOutputDevice()。
+void PortAudioOutput::setPreferredDevice(std::string deviceName);
+```
+
+SettingsDialog 用 `enumerateOutputDevices()` 填下拉框；main.cpp 启动时把
+`settings.output_device` 喂回 `setPreferredDevice`，所以 `AudioEngine::open`
+要查 `defaultSampleRate()` 时拿到的是用户指定那张声卡的首选速率。
+
+## 音量控制 (Phase 4)
+
+AudioEngine 持有 `std::atomic<float> volume_{1.0F}`，callback 在从 RingBuffer
+读出样本之后、写入声卡之前做一次乘法：
+
+```cpp
+const float vol = volume_.load(std::memory_order_acquire);
+if (vol != 1.0F) {              // 单位增益走 branch-free 快路径
+    for (int i = 0; i < read; ++i)
+        buffer[i] *= vol;
+}
+```
+
+`setVolume(double)` clamp 到 `[0.0, 1.0]` 再 store。`atomic<float>` 在所有
+现代平台都是 lock-free（与 atomic<double> 不同），符合 callback 的
+"仅 lock-free 原子操作" 约束。
+
+## EOF 自动推进 (Phase 4)
+
+callback 端 CAS 把 state Playing→Stopped 之后，主线程 (PlayerController 的
+QTimer) 在下一个 tick 检测到状态变化，按下面规则决定要不要自动推进：
+
+```cpp
+// in PlayerController::onPositionTick():
+if (fromPlaying && now == Stopped && !userStopRequested_ && engine_->eofReached())
+    handleNaturalEnd();  // 调 PlayQueue.advanceNatural() 拿下一首
+```
+
+`AudioEngine::eofReached()` 是公开 getter：
+
+- decode 线程在 `decoder_->decode()` 返回空 vector 时把 `eofReached_` 置 true
+- callback 看到 ring 排空 + eofReached → CAS 到 Stopped
+- 主线程读到 eofReached==true 的 Stopped 判断为"自然结束"，否则视为"用户停"
+
+`userStopRequested_` 是 PlayerController 的局部状态，区分用户主动 stop 与
+自然 EOF；自然 EOF 才走自动推进。
+
+## setCallback 时机约束
+
+`PortAudioOutput::setCallback` 在调试构建里 `assert` 流必须处于 stopped /
+未 open 状态。realtime callback 不加锁读 `callback_`；运行中替换会撕裂。
+
 ## 播放位置追踪
 
 ```cpp

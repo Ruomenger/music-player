@@ -1,9 +1,9 @@
 # 数据库表设计 (SQLite3)
 
-> **状态：Phase 2 设计稿，未实现。** `SqliteSongRepo` / `SqlitePlaylistRepo` /
-> `SqliteSettingsRepo` 当前是 stub —— 调用任何方法会抛 `std::logic_error`
-> ("not implemented (Phase 2)"). 本文档定义的表、索引、触发器、PRAGMA 全部
-> 待 Phase 2 启动时按本设计落地。表结构在落地前还可调整。
+> **状态：Phase 2 已落地（include `play_history` 在 Phase 4 加进来）。**
+> 实际迁移脚本在 `src/infra/sqlite_database.cpp` 的 `kSchemaStatements[]`。
+> 所有表、索引、触发器、PRAGMA 已经按本文设计落库；本文是设计意图说明，
+> 真实 SQL 应以代码为准。FTS5（§全文搜索）仍待 Phase 9 做性能优化时启用。
 
 ## ER 关系概览
 
@@ -80,8 +80,8 @@ END;
 CREATE TABLE playlists (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    description TEXT DEFAULT '',
-    cover_path TEXT DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    cover_path TEXT NOT NULL DEFAULT '',
     is_system INTEGER NOT NULL DEFAULT 0,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -138,7 +138,7 @@ CREATE TABLE settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
     value_type TEXT NOT NULL DEFAULT 'string',
-    display_name TEXT DEFAULT '',
+    display_name TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 ```
