@@ -3,6 +3,7 @@ add_library(musicplayer_domain STATIC
     iaudio_decoder.cpp
     iaudio_output.cpp
     song_info.cpp
+    playlist.cpp
     audio_engine.cpp
     lyric_parser.cpp
     playlist_model.cpp

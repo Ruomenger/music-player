@@ -1,9 +1,11 @@
 add_library(musicplayer_infra STATIC
     ffmpeg_decoder.cpp
     portaudio_output.cpp
+    sqlite_database.cpp
     sqlite_song_repo.cpp
     sqlite_playlist_repo.cpp
     sqlite_settings_repo.cpp
+    player_state_repo.cpp
     config_paths.cpp
 )
 

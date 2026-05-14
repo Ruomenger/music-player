@@ -57,14 +57,16 @@
 
 ### 实际实现
 
-- [ ] 实现 `SqliteSongRepo` (CRUD for songs 表)
-- [ ] 实现 `SqlitePlaylistRepo` (CRUD for playlists + playlist_songs 表)
-- [ ] 实现 `SqliteSettingsRepo` (CRUD for settings 表)
-- [ ] 实现 `PlayerStateRepo` (save/load player_state 表)
-- [ ] 实现数据库迁移/初始化逻辑 (建表 + PRAGMA 设置)
-- [ ] 扩充 `test_sqlite_song_repo.cpp` 为真实 CRUD 测试 (用 `:memory:` 数据库)
-- [ ] 编写 `test_sqlite_playlist_repo.cpp`
-- [ ] 验证: 可增删改查歌曲和歌单
+- [x] 实现 `SqliteSongRepo` (CRUD for songs 表)
+- [x] 实现 `SqlitePlaylistRepo` (CRUD for playlists + playlist_songs 表)
+- [x] 实现 `SqliteSettingsRepo` (CRUD for settings 表)
+- [x] 实现 `PlayerStateRepo` (save/load player_state 表)
+- [x] 实现数据库迁移/初始化逻辑 (`SqliteDatabase`: PRAGMA + CREATE TABLE IF NOT EXISTS 基线)
+- [x] 扩充 `test_sqlite_song_repo.cpp` 为真实 CRUD 测试 (`:memory:` 数据库)
+- [x] 编写 `test_sqlite_playlist_repo.cpp` / `test_sqlite_settings_repo.cpp` /
+      `test_player_state_repo.cpp` / `test_sqlite_database.cpp`
+- [x] 验证: 35 个新增 SQLite 测试全部通过 (含 FK CASCADE / SET NULL、UPSERT、
+      reorder 事务回滚等场景)
 
 ## Phase 3: 音乐扫描与导入
 
