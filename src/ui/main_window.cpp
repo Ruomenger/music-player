@@ -5,9 +5,11 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QLabel>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSplitter>
 #include <QStatusBar>
 #include <QString>
 #include <QStringList>
@@ -21,10 +23,13 @@
 #include "library_importer.h"
 #include "lyric_manager.h"
 #include "lyric_widget.h"
+#include "new_playlist_dialog.h"
 #include "player_controller.h"
 #include "playlist_manager.h"
+#include "playlist_sidebar.h"
 #include "playlist_widget.h"
 #include "song_info.h"
+#include "sqlite_play_history_repo.h"
 #include "sqlite_song_repo.h"
 
 namespace musicplayer {
@@ -32,6 +37,7 @@ namespace musicplayer {
 namespace {
 
 constexpr int kCoverSize = 200;
+constexpr int kRecentLimit = 50;
 
 QString toQString(std::string_view sv) {
     return QString::fromUtf8(sv.data(), static_cast<qsizetype>(sv.size()));
@@ -47,19 +53,22 @@ QStringList audioFileFilters() {
 }  // namespace
 
 MainWindow::MainWindow(SqliteSongRepo* songs, PlaylistManager* playlists, PlayerController* player,
-                       LibraryImporter* importer, LyricManager* lyrics, QWidget* parent)
+                       LibraryImporter* importer, LyricManager* lyrics,
+                       SqlitePlayHistoryRepo* history, QWidget* parent)
     : QMainWindow(parent)
     , songs_(songs)
     , playlists_(playlists)
     , player_(player)
     , importer_(importer)
-    , lyrics_(lyrics) {
+    , lyrics_(lyrics)
+    , history_(history) {
     setWindowTitle(toQString(kAppName));
-    setMinimumSize(800, 600);
+    setMinimumSize(900, 600);
 
     buildLayout();
     buildMenus();
     connectSignals();
+    refreshSidebar();
     refreshSongList();
 }
 
@@ -82,25 +91,33 @@ void MainWindow::buildLayout() {
     leftLayout->addWidget(titleLabel_);
     leftLayout->addWidget(artistLabel_);
     leftLayout->addStretch(1);
+    auto* leftPanel = new QWidget(central);
+    leftPanel->setLayout(leftLayout);
 
+    sidebar_ = new PlaylistSidebar(central);
     playlistWidget_ = new PlaylistWidget(central);
     lyricWidget_ = new LyricWidget(central);
 
-    // QTabWidget lets the user flip between the library view and the lyric
-    // pane without losing screen real estate. Phase 7 will probably move the
-    // library to a sidebar of its own.
     auto* rightTabs = new QTabWidget(central);
     rightTabs->addTab(playlistWidget_, tr("Library"));
     rightTabs->addTab(lyricWidget_, tr("Lyrics"));
 
-    auto* topLayout = new QHBoxLayout();
-    topLayout->addLayout(leftLayout);
-    topLayout->addWidget(rightTabs, /*stretch=*/1);
+    // QSplitter lets the user resize the sidebar / cover-info / right-pane
+    // proportions. Default stretch factors keep the right tabs dominant.
+    auto* splitter = new QSplitter(Qt::Horizontal, central);
+    splitter->addWidget(sidebar_);
+    splitter->addWidget(leftPanel);
+    splitter->addWidget(rightTabs);
+    splitter->setStretchFactor(0, 0);  // sidebar fixed-ish
+    splitter->setStretchFactor(1, 0);  // cover/info fixed-ish
+    splitter->setStretchFactor(2, 1);  // right tabs absorb the rest
+    sidebar_->setMinimumWidth(160);
+    sidebar_->setMaximumWidth(260);
 
     controlBar_ = new ControlBar(central);
 
     auto* rootLayout = new QVBoxLayout(central);
-    rootLayout->addLayout(topLayout, /*stretch=*/1);
+    rootLayout->addWidget(splitter, /*stretch=*/1);
     rootLayout->addWidget(controlBar_);
 
     setCentralWidget(central);
@@ -136,7 +153,45 @@ void MainWindow::connectSignals() {
     connect(controlBar_, &ControlBar::volumeChangeRequested, player_, &PlayerController::setVolume);
     connect(controlBar_, &ControlBar::playModeChangeRequested, player_,
             &PlayerController::setPlayMode);
+
+    // Library view → controller / manager
     connect(playlistWidget_, &PlaylistWidget::songActivated, this, &MainWindow::onSongActivated);
+    connect(playlistWidget_, &PlaylistWidget::removeSongRequested, this,
+            &MainWindow::onRemoveSongRequested);
+    connect(playlistWidget_, &PlaylistWidget::toggleFavoriteRequested, this,
+            &MainWindow::onToggleFavorite);
+    connect(playlistWidget_, &PlaylistWidget::songsReorderedSignal, this,
+            &MainWindow::onSongsReordered);
+
+    // Sidebar → main window
+    connect(sidebar_, &PlaylistSidebar::sourceSelected, this, &MainWindow::onSourceSelected);
+    connect(sidebar_, &PlaylistSidebar::newPlaylistRequested, this,
+            &MainWindow::onNewPlaylistRequested);
+    connect(sidebar_, &PlaylistSidebar::renamePlaylistRequested, this,
+            &MainWindow::onRenamePlaylistRequested);
+    connect(sidebar_, &PlaylistSidebar::deletePlaylistRequested, this,
+            &MainWindow::onDeletePlaylistRequested);
+
+    // Playlist manager → sidebar refresh
+    if (playlists_) {
+        connect(playlists_, &PlaylistManager::playlistCreated, this, &MainWindow::refreshSidebar);
+        connect(playlists_, &PlaylistManager::playlistRenamed, this, &MainWindow::refreshSidebar);
+        connect(playlists_, &PlaylistManager::playlistDeleted, this, [this](int id) {
+            // If the user deleted the currently-displayed playlist, fall
+            // back to All Songs so we don't keep showing a stale view.
+            if (currentSource_ == LibrarySource::UserPlaylist && currentPlaylistId_ == id) {
+                currentSource_ = LibrarySource::AllSongs;
+                currentPlaylistId_ = 0;
+                refreshSongList();
+                sidebar_->selectAllSongs();
+            }
+            refreshSidebar();
+        });
+        connect(playlists_, &PlaylistManager::songsChanged, this, [this](int id) {
+            if (currentSource_ == LibrarySource::UserPlaylist && currentPlaylistId_ == id)
+                refreshSongList();
+        });
+    }
 
     // Controller → UI
     connect(player_, &PlayerController::currentSongChanged, this,
@@ -148,8 +203,7 @@ void MainWindow::connectSignals() {
     connect(player_, &PlayerController::stateChanged, this, &MainWindow::onPlayerStateChanged);
     connect(player_, &PlayerController::errorOccurred, this, &MainWindow::onErrorOccurred);
 
-    // Lyrics: controller → manager → widget. The manager is loaded from the
-    // song's lyricPath on currentSongChanged and advances on positionChanged.
+    // Lyrics: controller → manager → widget.
     if (lyrics_) {
         connect(player_, &PlayerController::currentSongChanged, lyrics_,
                 &LyricManager::loadForSong);
@@ -162,15 +216,42 @@ void MainWindow::connectSignals() {
                 &LyricManager::loadFromPath);
     }
 
-    // Initial reflection of player state so the volume slider isn't stale.
     controlBar_->setVolume(player_->volume());
     controlBar_->setPlayMode(player_->playMode());
+}
+
+void MainWindow::refreshSidebar() {
+    if (!sidebar_ || !playlists_)
+        return;
+    sidebar_->setPlaylists(playlists_->allPlaylists());
 }
 
 void MainWindow::refreshSongList() {
     if (!songs_)
         return;
-    playlistWidget_->setSongs(songs_->getAllSongs());
+    switch (currentSource_) {
+        case LibrarySource::AllSongs:
+            playlistWidget_->setSongs(songs_->getAllSongs());
+            playlistWidget_->setReorderable(false);
+            playlistWidget_->setRemovable(false);
+            break;
+        case LibrarySource::RecentlyPlayed: {
+            std::vector<SongInfo> result;
+            if (history_) {
+                for (const auto& entry : history_->recent(kRecentLimit))
+                    result.push_back(entry.song);
+            }
+            playlistWidget_->setSongs(std::move(result));
+            playlistWidget_->setReorderable(false);
+            playlistWidget_->setRemovable(false);
+            break;
+        }
+        case LibrarySource::UserPlaylist:
+            playlistWidget_->setSongs(playlists_->songsIn(currentPlaylistId_));
+            playlistWidget_->setReorderable(true);
+            playlistWidget_->setRemovable(true);
+            break;
+    }
 }
 
 void MainWindow::onAddFiles() {
@@ -218,6 +299,24 @@ void MainWindow::onSongActivated(int songId) {
     player_->play(songId);
 }
 
+void MainWindow::onRemoveSongRequested(int songId) {
+    if (currentSource_ != LibrarySource::UserPlaylist || currentPlaylistId_ <= 0)
+        return;
+    playlists_->removeSong(currentPlaylistId_, songId);
+}
+
+void MainWindow::onToggleFavorite(int songId) {
+    if (playlists_)
+        playlists_->toggleFavorite(songId);
+}
+
+void MainWindow::onSongsReordered(const QList<int>& orderedSongIds) {
+    if (currentSource_ != LibrarySource::UserPlaylist || currentPlaylistId_ <= 0)
+        return;
+    const std::vector<int> ids(orderedSongIds.cbegin(), orderedSongIds.cend());
+    playlists_->reorderSongs(currentPlaylistId_, ids);
+}
+
 void MainWindow::onCurrentSongChanged(const SongInfo& song) {
     titleLabel_->setText(song.title.empty() ? QStringLiteral("—")
                                             : QString::fromStdString(song.title));
@@ -245,6 +344,50 @@ void MainWindow::onPlayerStateChanged(int state) {
 void MainWindow::onErrorOccurred(const QString& message) {
     statusLabel_->setText(message);
     QMessageBox::warning(this, tr("Playback error"), message);
+}
+
+void MainWindow::onSourceSelected(LibrarySource source, int playlistId) {
+    currentSource_ = source;
+    currentPlaylistId_ = playlistId;
+    refreshSongList();
+}
+
+void MainWindow::onNewPlaylistRequested() {
+    const auto result = NewPlaylistDialog::run(this);
+    if (!result)
+        return;
+    const int id = playlists_->createPlaylist(result->name, result->description);
+    if (id > 0) {
+        // refreshSidebar already runs via the playlistCreated signal — but
+        // it races with this slot, so call it explicitly to be sure the
+        // sidebar shows the new row before we ask it to select.
+        refreshSidebar();
+        sidebar_->selectPlaylist(id);
+    }
+}
+
+void MainWindow::onRenamePlaylistRequested(int playlistId) {
+    const auto existing = playlists_->playlistById(playlistId);
+    if (!existing)
+        return;
+    bool ok = false;
+    const QString newName =
+        QInputDialog::getText(this, tr("Rename playlist"), tr("New name:"), QLineEdit::Normal,
+                              QString::fromStdString(existing->name), &ok);
+    if (!ok || newName.trimmed().isEmpty())
+        return;
+    playlists_->renamePlaylist(playlistId, newName.trimmed());
+}
+
+void MainWindow::onDeletePlaylistRequested(int playlistId) {
+    const auto existing = playlists_->playlistById(playlistId);
+    if (!existing)
+        return;
+    const auto answer = QMessageBox::question(
+        this, tr("Delete playlist"),
+        tr("Delete playlist '%1'?").arg(QString::fromStdString(existing->name)));
+    if (answer == QMessageBox::Yes)
+        playlists_->deletePlaylist(playlistId);
 }
 
 }  // namespace musicplayer

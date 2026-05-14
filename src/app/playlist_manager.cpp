@@ -17,11 +17,15 @@ int PlaylistManager::ensureFavoritesPlaylist() {
     const auto existing = repo_->getAllPlaylists();
     const auto it = std::ranges::find_if(
         existing, [](const Playlist& p) { return p.isSystem && p.name == kFavoritesName; });
-    if (it != existing.end())
+    if (it != existing.end()) {
+        favoritesId_ = it->id;
         return it->id;
+    }
     const int id = repo_->createPlaylist(kFavoritesName, /*description=*/"", /*isSystem=*/true);
-    if (id > 0)
+    if (id > 0) {
+        favoritesId_ = id;
         emit playlistCreated(id);
+    }
     return id;
 }
 
@@ -77,6 +81,42 @@ bool PlaylistManager::reorderSongs(int playlistId, const std::vector<int>& songI
 
 std::vector<SongInfo> PlaylistManager::songsIn(int playlistId) const {
     return repo_->getSongsInPlaylist(playlistId);
+}
+
+int PlaylistManager::favoritesPlaylistId() const {
+    if (favoritesId_ > 0)
+        return favoritesId_;
+    // Tolerate callers that skip ensureFavoritesPlaylist on startup — find
+    // it lazily, but don't create it here (that would race with whoever the
+    // user expected to bootstrap the system playlist).
+    const auto existing = repo_->getAllPlaylists();
+    const auto it = std::ranges::find_if(
+        existing, [](const Playlist& p) { return p.isSystem && p.name == kFavoritesName; });
+    if (it != existing.end())
+        favoritesId_ = it->id;
+    return favoritesId_;
+}
+
+bool PlaylistManager::toggleFavorite(int songId) {
+    const int favId = favoritesPlaylistId();
+    if (favId <= 0)
+        return false;
+    const bool currentlyFav = isFavorite(songId);
+    const bool ok = currentlyFav ? repo_->removeSongFromPlaylist(favId, songId)
+                                 : repo_->addSongToPlaylist(favId, songId);
+    if (!ok)
+        return false;
+    emit songsChanged(favId);
+    emit favoriteChanged(songId, !currentlyFav);
+    return true;
+}
+
+bool PlaylistManager::isFavorite(int songId) const {
+    const int favId = favoritesPlaylistId();
+    if (favId <= 0)
+        return false;
+    const auto songs = repo_->getSongsInPlaylist(favId);
+    return std::ranges::any_of(songs, [songId](const SongInfo& s) { return s.id == songId; });
 }
 
 }  // namespace musicplayer

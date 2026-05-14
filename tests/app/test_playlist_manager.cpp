@@ -121,3 +121,30 @@ TEST_F(PlaylistManagerTest, EnsureFavoritesIsIdempotent) {
     EXPECT_TRUE(p->isSystem);
     EXPECT_EQ(p->name, "我喜欢");
 }
+
+TEST_F(PlaylistManagerTest, ToggleFavoriteAddsThenRemoves) {
+    manager_->ensureFavoritesPlaylist();
+    const int songId = insertSampleSong("/m/heart.mp3");
+    ASSERT_GT(songId, 0);
+
+    QSignalSpy favSpy(manager_.get(), &PlaylistManager::favoriteChanged);
+    EXPECT_FALSE(manager_->isFavorite(songId));
+    EXPECT_TRUE(manager_->toggleFavorite(songId));
+    EXPECT_TRUE(manager_->isFavorite(songId));
+    EXPECT_TRUE(manager_->toggleFavorite(songId));
+    EXPECT_FALSE(manager_->isFavorite(songId));
+
+    ASSERT_EQ(favSpy.count(), 2);
+    EXPECT_TRUE(favSpy.at(0).at(1).toBool());   // first toggle → favorite
+    EXPECT_FALSE(favSpy.at(1).at(1).toBool());  // second → un-favorite
+}
+
+TEST_F(PlaylistManagerTest, ToggleFavoriteWithoutBootstrapFindsExistingRow) {
+    // ensureFavoritesPlaylist isn't called explicitly here; toggleFavorite
+    // should still find the system row if it exists in the DB.
+    manager_->ensureFavoritesPlaylist();
+    PlaylistManager fresh(repo_.get());  // never called ensureFavorites itself
+    const int songId = insertSampleSong("/m/lazyfav.mp3");
+    EXPECT_TRUE(fresh.toggleFavorite(songId));
+    EXPECT_TRUE(fresh.isFavorite(songId));
+}

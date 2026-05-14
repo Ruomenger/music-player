@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractTableModel>
+#include <QList>
 
 #include <vector>
 
@@ -38,8 +39,41 @@ public:
     // emits this when the user double-clicks; PlayerController takes the id.
     [[nodiscard]] int songIdAt(int row) const;
 
+    // ── Drag-drop reorder ───────────────────────────────────────────────
+    // Switching reordering on opts the model into Qt's InternalMove flow:
+    // flags() exposes ItemIsDragEnabled, mimeData / dropMimeData round-trip
+    // the source row, and a successful drop emits songsReordered with the
+    // new id ordering. The PlaylistWidget host flips this on when the user
+    // navigates into a user playlist source and off again for read-only
+    // views like "All Songs".
+    void setReorderable(bool enable);
+    [[nodiscard]] bool isReorderable() const { return reorderable_; }
+
+    // QAbstractItemModel overrides for drag-drop:
+    [[nodiscard]] Qt::ItemFlags flags(const QModelIndex& index) const override;
+    [[nodiscard]] Qt::DropActions supportedDropActions() const override;
+    [[nodiscard]] QStringList mimeTypes() const override;
+    [[nodiscard]] QMimeData* mimeData(const QModelIndexList& indexes) const override;
+    bool dropMimeData(const QMimeData* data, Qt::DropAction action, int row, int column,
+                      const QModelIndex& parent) override;
+    // Qt's InternalMove framework calls removeRows() on the source after a
+    // successful dropMimeData to "clean up" the dragged row — but
+    // dropMimeData already moved the song to its new index, so the cleanup
+    // would corrupt the list. Overriding to a true no-op keeps the model
+    // honest.
+    bool removeRows(int row, int count, const QModelIndex& parent = {}) override;
+
+signals:
+    // Emitted after dropMimeData has finished applying a successful reorder.
+    // Payload: the song ids in their new order. PlaylistWidget forwards this
+    // up to MainWindow which calls PlaylistManager::reorderSongs. Using
+    // QList<int> here so QSignalSpy / QVariant marshal the payload without
+    // any Q_DECLARE_METATYPE dance.
+    void songsReordered(const QList<int>& orderedSongIds);
+
 private:
     std::vector<SongInfo> songs_;
+    bool reorderable_ = false;
 };
 
 }  // namespace musicplayer

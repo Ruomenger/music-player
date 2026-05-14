@@ -100,6 +100,8 @@ add_qt_widget_test(test_song_table_model)
 add_qt_widget_test(test_control_bar)
 add_qt_widget_test(test_cover_widget)
 add_qt_widget_test(test_lyric_widget)
+add_qt_widget_test(test_new_playlist_dialog)
+add_qt_widget_test(test_playlist_sidebar)
 
 # Integration tests
 add_executable(test_audio_pipeline integration/test_audio_pipeline.cpp)

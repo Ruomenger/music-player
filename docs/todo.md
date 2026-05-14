@@ -147,13 +147,26 @@
 
 ## Phase 7: 歌单 UI 和交互
 
-- [ ] 实现歌单列表 (QListView 或列表面板)
-- [ ] 实现创建歌单对话框
-- [ ] 实现歌单右键菜单 (播放/重命名/删除/导出)
-- [ ] 实现歌曲拖拽排序 (在 playlist_widget 中)
-- [ ] 实现"我喜欢"功能 (收藏到系统歌单)
-- [ ] 实现最近播放列表 (从 play_history 生成)
-- [ ] 验证: 创建歌单→添加歌曲→拖拽排序→切换歌单播放
+- [x] 实现 `PlaylistSidebar` (QListWidget + section headers; Sources /
+      Playlists 两段; `sourceSelected(LibrarySource, playlistId)` 信号; 
+      QSplitter 左边栏可调宽)
+- [x] 实现 `NewPlaylistDialog` (名称+描述 QLineEdit, OK 按钮按非空名启用;
+      静态 `run(parent)` 返回 std::optional 结果)
+- [x] 实现歌单右键菜单 (Rename / Delete; 用 QInputDialog + QMessageBox 确认;
+      系统歌单 "我喜欢" 跳过菜单避免删除; 导出功能延后)
+- [x] 实现歌曲拖拽排序 (SongTableModel 实现 mimeData / dropMimeData /
+      removeRows no-op; PlaylistWidget 配置 InternalMove + MoveAction;
+      仅 UserPlaylist 源开启, 完成后 `songsReordered(QList<int>)`
+      → MainWindow → PlaylistManager.reorderSongs)
+- [x] 实现"我喜欢"功能 (`PlaylistManager::toggleFavorite/isFavorite` 封装
+      系统歌单 add/removeSong; PlaylistWidget 右键 "Toggle favorite";
+      `favoriteChanged(songId, bool)` 信号)
+- [x] 实现最近播放列表 (LibrarySource::RecentlyPlayed →
+      `SqlitePlayHistoryRepo::recent(50)` JOIN songs)
+- [x] 验证: 175/175 测试通过 (17 个新增: 2 favorites + 4 NewPlaylistDialog +
+      6 PlaylistSidebar + 5 SongTableModel 拖拽); UI 由
+      sidebar/cover/right-tabs 三段 QSplitter 组合; PlaylistManager 信号
+      触发 sidebar 实时刷新
 
 ## Phase 8: 设置和配置
 

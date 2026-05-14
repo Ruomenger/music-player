@@ -1,6 +1,8 @@
 add_library(musicplayer_ui STATIC
     main_window.cpp
     playlist_widget.cpp
+    playlist_sidebar.cpp
+    new_playlist_dialog.cpp
     lyric_widget.cpp
     control_bar.cpp
     cover_widget.cpp

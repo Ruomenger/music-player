@@ -41,14 +41,25 @@ public:
 
     [[nodiscard]] std::vector<SongInfo> songsIn(int playlistId) const;
 
+    // Favorites are stored as ordinary playlist_songs rows against the
+    // system playlist created by ensureFavoritesPlaylist(). These helpers
+    // wrap the (lookup-id, add/remove) dance so call sites don't have to
+    // know the playlist's row id.
+    bool toggleFavorite(int songId);
+    [[nodiscard]] bool isFavorite(int songId) const;
+
 signals:
     void playlistCreated(int playlistId);
     void playlistRenamed(int playlistId);
     void playlistDeleted(int playlistId);
     void songsChanged(int playlistId);  // fired for add / remove / reorder
+    void favoriteChanged(int songId, bool isFavorite);
 
 private:
+    [[nodiscard]] int favoritesPlaylistId() const;
+
     SqlitePlaylistRepo* repo_;
+    mutable int favoritesId_ = 0;  // cached after first ensureFavoritesPlaylist call
 };
 
 }  // namespace musicplayer

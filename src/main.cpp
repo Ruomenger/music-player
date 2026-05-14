@@ -99,7 +99,8 @@ int main(int argc, char* argv[]) {
         playlistManager.ensureFavoritesPlaylist();
 
         // ── UI ───────────────────────────────────────────────────────────────
-        musicplayer::MainWindow window(&songs, &playlistManager, &player, &importer, &lyricManager);
+        musicplayer::MainWindow window(&songs, &playlistManager, &player, &importer, &lyricManager,
+                                       &history);
         window.show();
 
         player.restoreLastSession();
