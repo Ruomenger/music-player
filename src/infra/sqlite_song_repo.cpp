@@ -19,7 +19,8 @@ QSqlDatabase conn(const std::string& name) {
 }
 
 // hasLyric (domain) ↔ lyric_source (schema): bool maps to 'lrc_file' when true
-// (Phase 3 scanner will refine to 'embedded' / 'manual' as it detects sources).
+// (Phase 3 importer only handles sidecar .lrc files; refining to 'embedded' /
+// 'manual' will come with the in-tag lyric extractor).
 constexpr const char* kLyricSourceFromBool[] = {"none", "lrc_file"};
 
 SongInfo songFromQuery(const QSqlQuery& q) {
@@ -28,16 +29,53 @@ SongInfo songFromQuery(const QSqlQuery& q) {
     s.title = q.value("title").toString().toStdString();
     s.artist = q.value("artist").toString().toStdString();
     s.album = q.value("album").toString().toStdString();
+    s.albumArtist = q.value("album_artist").toString().toStdString();
+    s.composer = q.value("composer").toString().toStdString();
+    s.genre = q.value("genre").toString().toStdString();
+    s.year = q.value("year").toInt();
+    s.trackNumber = q.value("track_number").toInt();
+    s.discNumber = q.value("disc_number").toInt();
     s.filePath = q.value("file_path").toString().toStdString();
+    s.fileSize = q.value("file_size").toLongLong();
+    s.fileMtime = q.value("file_mtime").toLongLong();
     s.duration = q.value("duration").toDouble();
     s.format = q.value("format").toString().toStdString();
+    s.bitrate = q.value("bitrate").toInt();
+    s.sampleRate = q.value("sample_rate").toInt();
+    s.channels = q.value("channels").toInt();
+    s.coverPath = q.value("cover_path").toString().toStdString();
     s.lyricPath = q.value("lyric_path").toString().toStdString();
     s.hasLyric = q.value("lyric_source").toString() != QLatin1StringView("none");
     return s;
 }
 
 constexpr const char* kSelectCols =
-    "id, title, artist, album, file_path, duration, format, lyric_path, lyric_source";
+    "id, title, artist, album, album_artist, composer, genre, year, track_number, "
+    "disc_number, file_path, file_size, file_mtime, duration, format, bitrate, "
+    "sample_rate, channels, cover_path, lyric_path, lyric_source";
+
+void bindWriteFields(QSqlQuery& q, const SongInfo& song) {
+    q.bindValue(":file_path", QString::fromStdString(song.filePath));
+    q.bindValue(":title", QString::fromStdString(song.title));
+    q.bindValue(":artist", QString::fromStdString(song.artist));
+    q.bindValue(":album", QString::fromStdString(song.album));
+    q.bindValue(":album_artist", QString::fromStdString(song.albumArtist));
+    q.bindValue(":composer", QString::fromStdString(song.composer));
+    q.bindValue(":genre", QString::fromStdString(song.genre));
+    q.bindValue(":year", song.year);
+    q.bindValue(":track_number", song.trackNumber);
+    q.bindValue(":disc_number", song.discNumber);
+    q.bindValue(":file_size", static_cast<qlonglong>(song.fileSize));
+    q.bindValue(":file_mtime", static_cast<qlonglong>(song.fileMtime));
+    q.bindValue(":duration", song.duration);
+    q.bindValue(":format", QString::fromStdString(song.format));
+    q.bindValue(":bitrate", song.bitrate);
+    q.bindValue(":sample_rate", song.sampleRate);
+    q.bindValue(":channels", song.channels);
+    q.bindValue(":cover_path", QString::fromStdString(song.coverPath));
+    q.bindValue(":lyric_path", QString::fromStdString(song.lyricPath));
+    q.bindValue(":lyric_source", QLatin1StringView(kLyricSourceFromBool[song.hasLyric ? 1 : 0]));
+}
 
 }  // namespace
 
@@ -52,19 +90,16 @@ int SqliteSongRepo::insertSong(const SongInfo& song) {
         return -1;
     }
     QSqlQuery q(db);
-    q.prepare(
-        QLatin1StringView("INSERT INTO songs(file_path, title, artist, album, duration, format,"
-                          "                  lyric_path, lyric_source) "
-                          "VALUES (:file_path, :title, :artist, :album, :duration, :format,"
-                          "        :lyric_path, :lyric_source)"));
-    q.bindValue(":file_path", QString::fromStdString(song.filePath));
-    q.bindValue(":title", QString::fromStdString(song.title));
-    q.bindValue(":artist", QString::fromStdString(song.artist));
-    q.bindValue(":album", QString::fromStdString(song.album));
-    q.bindValue(":duration", song.duration);
-    q.bindValue(":format", QString::fromStdString(song.format));
-    q.bindValue(":lyric_path", QString::fromStdString(song.lyricPath));
-    q.bindValue(":lyric_source", QLatin1StringView(kLyricSourceFromBool[song.hasLyric ? 1 : 0]));
+    q.prepare(QLatin1StringView(
+        "INSERT INTO songs(file_path, title, artist, album, album_artist, composer,"
+        "                  genre, year, track_number, disc_number, file_size,"
+        "                  file_mtime, duration, format, bitrate, sample_rate,"
+        "                  channels, cover_path, lyric_path, lyric_source) "
+        "VALUES (:file_path, :title, :artist, :album, :album_artist, :composer,"
+        "        :genre, :year, :track_number, :disc_number, :file_size,"
+        "        :file_mtime, :duration, :format, :bitrate, :sample_rate,"
+        "        :channels, :cover_path, :lyric_path, :lyric_source)"));
+    bindWriteFields(q, song);
     if (!q.exec()) {
         qWarning("SqliteSongRepo::insertSong: failed: %s",
                  q.lastError().text().toUtf8().constData());
@@ -81,20 +116,18 @@ bool SqliteSongRepo::updateSong(const SongInfo& song) {
         return false;
     }
     QSqlQuery q(db);
-    q.prepare(
-        QLatin1StringView("UPDATE songs SET file_path = :file_path, title = :title,"
-                          "                 artist = :artist, album = :album,"
-                          "                 duration = :duration, format = :format,"
-                          "                 lyric_path = :lyric_path, lyric_source = :lyric_source "
-                          "WHERE id = :id"));
-    q.bindValue(":file_path", QString::fromStdString(song.filePath));
-    q.bindValue(":title", QString::fromStdString(song.title));
-    q.bindValue(":artist", QString::fromStdString(song.artist));
-    q.bindValue(":album", QString::fromStdString(song.album));
-    q.bindValue(":duration", song.duration);
-    q.bindValue(":format", QString::fromStdString(song.format));
-    q.bindValue(":lyric_path", QString::fromStdString(song.lyricPath));
-    q.bindValue(":lyric_source", QLatin1StringView(kLyricSourceFromBool[song.hasLyric ? 1 : 0]));
+    q.prepare(QLatin1StringView(
+        "UPDATE songs SET file_path = :file_path, title = :title, artist = :artist,"
+        "                 album = :album, album_artist = :album_artist,"
+        "                 composer = :composer, genre = :genre, year = :year,"
+        "                 track_number = :track_number, disc_number = :disc_number,"
+        "                 file_size = :file_size, file_mtime = :file_mtime,"
+        "                 duration = :duration, format = :format, bitrate = :bitrate,"
+        "                 sample_rate = :sample_rate, channels = :channels,"
+        "                 cover_path = :cover_path, lyric_path = :lyric_path,"
+        "                 lyric_source = :lyric_source "
+        "WHERE id = :id"));
+    bindWriteFields(q, song);
     q.bindValue(":id", song.id);
     if (!q.exec()) {
         qWarning("SqliteSongRepo::updateSong: failed: %s",

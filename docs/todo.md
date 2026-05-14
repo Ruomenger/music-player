@@ -70,14 +70,22 @@
 
 ## Phase 3: 音乐扫描与导入
 
-- [ ] 实现文件扫描器 (遍历目录, 识别音频文件扩展名)
-- [ ] 实现元数据提取 (通过 FFmpeg 读取 title/artist/album/cover/duration)
-- [ ] 实现去重逻辑 (file_path UNIQUE + md5_hash)
-- [ ] 实现封面缓存 (提取嵌入封面保存到 cache 目录)
-- [ ] 实现同名歌词自动匹配 (同目录下 .lrc 文件)
-- [ ] 实现 `PlaylistManager` (创建/删除/重命名歌单, 添加/移除歌曲, 排序)
-- [ ] 编写测试
-- [ ] 验证: 扫描指定目录, 歌曲入库, 封面和歌词正确关联
+- [x] 实现文件扫描器 `MusicScanner` (`std::filesystem::recursive_directory_iterator`,
+      `audio_extensions.h` 中央扩展名列表)
+- [x] 实现元数据提取 `MetadataExtractor` (FFmpeg av_dict + codecpar:
+      title/artist/album/album_artist/composer/genre/year/track/disc + duration/
+      bitrate/sample_rate/channels + 嵌入封面 `AV_DISPOSITION_ATTACHED_PIC`)
+- [x] 实现去重逻辑 (file_path UNIQUE + file_size/file_mtime 快速跳过未变文件;
+      fingerprint/xxhash64 仍按 docs/database-schema.md 留给 Phase 9 懒计算)
+- [x] 实现封面缓存 `CoverCache` (content-addressed: MD5 + magic-byte 扩展名,
+      幂等 store)
+- [x] 实现同名歌词自动匹配 `LyricMatcher` (.lrc / .LRC / .Lrc 三种大小写)
+- [x] 实现 `PlaylistManager` (QObject 包装 `SqlitePlaylistRepo` + 信号
+      `playlistCreated/Renamed/Deleted/songsChanged` + "我喜欢" 系统歌单 bootstrap)
+- [x] 编写测试 (28 个新增: scanner / lyric_matcher / metadata_extractor /
+      cover_cache / library_importer / playlist_manager)
+- [x] 验证: `LibraryImporter::importDirectory()` 把扫描到的音频文件入库，
+      重复扫描原地跳过，修改后重扫触发 update; 测试覆盖完整流程
 
 ## Phase 4: 播放器控制器 (Application Layer)
 

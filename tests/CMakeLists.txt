@@ -36,6 +36,8 @@ macro(add_qt_infra_test name)
 endmacro()
 
 add_domain_test(test_lyric_parser)
+add_domain_test(test_lyric_matcher)
+add_domain_test(test_music_scanner)
 add_domain_test(test_ring_buffer)
 
 add_infra_test(test_ffmpeg_decoder)
@@ -48,9 +50,31 @@ add_qt_infra_test(test_sqlite_song_repo)
 add_qt_infra_test(test_sqlite_playlist_repo)
 add_qt_infra_test(test_sqlite_settings_repo)
 add_qt_infra_test(test_player_state_repo)
+add_qt_infra_test(test_cover_cache)
+add_qt_infra_test(test_library_importer)
 # test_sqlite_database constructs QSqlQuery / QSqlDatabase values directly;
 # infra keeps Qt6::Sql PRIVATE, so link it explicitly here.
 target_link_libraries(test_sqlite_database PRIVATE Qt6::Sql)
+
+# test_metadata_extractor needs no Qt runtime; FFmpeg only.
+add_infra_test(test_metadata_extractor)
+
+# Application-layer tests: PlaylistManager is a QObject with signals, so they
+# need a QCoreApplication (already provided by qt_test_main.cpp).
+macro(add_qt_app_test name)
+    add_executable(${name} app/${name}.cpp qt_test_main.cpp)
+    target_link_libraries(${name} PRIVATE
+        musicplayer_app
+        musicplayer_infra
+        musicplayer_domain
+        Qt6::Core
+        Qt6::Test
+        GTest::gtest
+    )
+    gtest_discover_tests(${name})
+endmacro()
+
+add_qt_app_test(test_playlist_manager)
 
 # Integration tests
 add_executable(test_audio_pipeline integration/test_audio_pipeline.cpp)

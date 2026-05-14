@@ -35,9 +35,21 @@ SongInfo songFromJoinQuery(const QSqlQuery& q) {
     s.title = q.value("title").toString().toStdString();
     s.artist = q.value("artist").toString().toStdString();
     s.album = q.value("album").toString().toStdString();
+    s.albumArtist = q.value("album_artist").toString().toStdString();
+    s.composer = q.value("composer").toString().toStdString();
+    s.genre = q.value("genre").toString().toStdString();
+    s.year = q.value("year").toInt();
+    s.trackNumber = q.value("track_number").toInt();
+    s.discNumber = q.value("disc_number").toInt();
     s.filePath = q.value("file_path").toString().toStdString();
+    s.fileSize = q.value("file_size").toLongLong();
+    s.fileMtime = q.value("file_mtime").toLongLong();
     s.duration = q.value("duration").toDouble();
     s.format = q.value("format").toString().toStdString();
+    s.bitrate = q.value("bitrate").toInt();
+    s.sampleRate = q.value("sample_rate").toInt();
+    s.channels = q.value("channels").toInt();
+    s.coverPath = q.value("cover_path").toString().toStdString();
     s.lyricPath = q.value("lyric_path").toString().toStdString();
     s.hasLyric = q.value("lyric_source").toString() != QLatin1StringView("none");
     return s;
@@ -207,13 +219,15 @@ std::vector<SongInfo> SqlitePlaylistRepo::getSongsInPlaylist(int playlistId) {
         return result;
     }
     QSqlQuery q(db);
-    q.prepare(
-        QLatin1StringView("SELECT s.id, s.title, s.artist, s.album, s.file_path, s.duration, "
-                          "       s.format, s.lyric_path, s.lyric_source "
-                          "FROM songs s "
-                          "JOIN playlist_songs ps ON ps.song_id = s.id "
-                          "WHERE ps.playlist_id = :pid "
-                          "ORDER BY ps.sort_index"));
+    q.prepare(QLatin1StringView(
+        "SELECT s.id, s.title, s.artist, s.album, s.album_artist, s.composer,"
+        "       s.genre, s.year, s.track_number, s.disc_number, s.file_path,"
+        "       s.file_size, s.file_mtime, s.duration, s.format, s.bitrate,"
+        "       s.sample_rate, s.channels, s.cover_path, s.lyric_path, s.lyric_source "
+        "FROM songs s "
+        "JOIN playlist_songs ps ON ps.song_id = s.id "
+        "WHERE ps.playlist_id = :pid "
+        "ORDER BY ps.sort_index"));
     q.bindValue(":pid", playlistId);
     if (!q.exec()) {
         qWarning("SqlitePlaylistRepo::getSongsInPlaylist: failed: %s",

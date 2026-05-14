@@ -7,6 +7,9 @@ add_library(musicplayer_infra STATIC
     sqlite_settings_repo.cpp
     player_state_repo.cpp
     config_paths.cpp
+    cover_cache.cpp
+    library_importer.cpp
+    metadata_extractor.cpp
 )
 
 target_include_directories(musicplayer_infra PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
