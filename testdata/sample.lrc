@@ -1,0 +1,9 @@
+[ti:Sample Song]
+[ar:Sample Artist]
+[al:Sample Album]
+[length:00:30]
+[00:00.00]First line
+[00:05.00]Second line
+[00:10.50]Third line with fraction
+[00:15.123]Fourth line with milliseconds
+[00:20.00][00:25.00]Shared text on two timestamps

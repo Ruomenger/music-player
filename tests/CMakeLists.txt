@@ -78,6 +78,7 @@ endmacro()
 
 add_qt_app_test(test_playlist_manager)
 add_qt_app_test(test_player_controller)
+add_qt_app_test(test_lyric_manager)
 
 # UI-layer tests run under a real QApplication on the offscreen platform plugin
 # so they're headless-safe (CI / SSH). qt_widget_test_main.cpp sets up the env.
@@ -98,6 +99,7 @@ endmacro()
 add_qt_widget_test(test_song_table_model)
 add_qt_widget_test(test_control_bar)
 add_qt_widget_test(test_cover_widget)
+add_qt_widget_test(test_lyric_widget)
 
 # Integration tests
 add_executable(test_audio_pipeline integration/test_audio_pipeline.cpp)

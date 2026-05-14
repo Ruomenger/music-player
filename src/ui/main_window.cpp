@@ -11,6 +11,7 @@
 #include <QStatusBar>
 #include <QString>
 #include <QStringList>
+#include <QTabWidget>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -18,6 +19,8 @@
 #include "control_bar.h"
 #include "cover_widget.h"
 #include "library_importer.h"
+#include "lyric_manager.h"
+#include "lyric_widget.h"
 #include "player_controller.h"
 #include "playlist_manager.h"
 #include "playlist_widget.h"
@@ -44,12 +47,13 @@ QStringList audioFileFilters() {
 }  // namespace
 
 MainWindow::MainWindow(SqliteSongRepo* songs, PlaylistManager* playlists, PlayerController* player,
-                       LibraryImporter* importer, QWidget* parent)
+                       LibraryImporter* importer, LyricManager* lyrics, QWidget* parent)
     : QMainWindow(parent)
     , songs_(songs)
     , playlists_(playlists)
     , player_(player)
-    , importer_(importer) {
+    , importer_(importer)
+    , lyrics_(lyrics) {
     setWindowTitle(toQString(kAppName));
     setMinimumSize(800, 600);
 
@@ -80,10 +84,18 @@ void MainWindow::buildLayout() {
     leftLayout->addStretch(1);
 
     playlistWidget_ = new PlaylistWidget(central);
+    lyricWidget_ = new LyricWidget(central);
+
+    // QTabWidget lets the user flip between the library view and the lyric
+    // pane without losing screen real estate. Phase 7 will probably move the
+    // library to a sidebar of its own.
+    auto* rightTabs = new QTabWidget(central);
+    rightTabs->addTab(playlistWidget_, tr("Library"));
+    rightTabs->addTab(lyricWidget_, tr("Lyrics"));
 
     auto* topLayout = new QHBoxLayout();
     topLayout->addLayout(leftLayout);
-    topLayout->addWidget(playlistWidget_, /*stretch=*/1);
+    topLayout->addWidget(rightTabs, /*stretch=*/1);
 
     controlBar_ = new ControlBar(central);
 
@@ -135,6 +147,20 @@ void MainWindow::connectSignals() {
             [this](int mode) { controlBar_->setPlayMode(static_cast<PlayMode>(mode)); });
     connect(player_, &PlayerController::stateChanged, this, &MainWindow::onPlayerStateChanged);
     connect(player_, &PlayerController::errorOccurred, this, &MainWindow::onErrorOccurred);
+
+    // Lyrics: controller → manager → widget. The manager is loaded from the
+    // song's lyricPath on currentSongChanged and advances on positionChanged.
+    if (lyrics_) {
+        connect(player_, &PlayerController::currentSongChanged, lyrics_,
+                &LyricManager::loadForSong);
+        connect(player_, &PlayerController::positionChanged, lyrics_,
+                &LyricManager::updatePosition);
+        connect(lyrics_, &LyricManager::lyricsChanged, lyricWidget_, &LyricWidget::setLines);
+        connect(lyrics_, &LyricManager::currentLineChanged, lyricWidget_,
+                &LyricWidget::setCurrentLine);
+        connect(lyricWidget_, &LyricWidget::manualLyricsRequested, lyrics_,
+                &LyricManager::loadFromPath);
+    }
 
     // Initial reflection of player state so the volume slider isn't stale.
     controlBar_->setVolume(player_->volume());

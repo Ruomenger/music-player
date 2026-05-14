@@ -15,6 +15,7 @@
 #include "cover_cache.h"
 #include "ffmpeg_decoder.h"
 #include "library_importer.h"
+#include "lyric_manager.h"
 #include "player_controller.h"
 #include "player_state_repo.h"
 #include "playlist_manager.h"
@@ -94,10 +95,11 @@ int main(int argc, char* argv[]) {
         // ── App-layer orchestrators ──────────────────────────────────────────
         musicplayer::PlayerController player(&engine, &songs, &history, &playerState);
         musicplayer::PlaylistManager playlistManager(&playlists);
+        musicplayer::LyricManager lyricManager;
         playlistManager.ensureFavoritesPlaylist();
 
         // ── UI ───────────────────────────────────────────────────────────────
-        musicplayer::MainWindow window(&songs, &playlistManager, &player, &importer);
+        musicplayer::MainWindow window(&songs, &playlistManager, &player, &importer, &lyricManager);
         window.show();
 
         player.restoreLastSession();

@@ -11,6 +11,8 @@ namespace musicplayer {
 class ControlBar;
 class CoverWidget;
 class LibraryImporter;
+class LyricManager;
+class LyricWidget;
 class PlayerController;
 class PlaylistManager;
 class PlaylistWidget;
@@ -25,7 +27,7 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
     MainWindow(SqliteSongRepo* songs, PlaylistManager* playlists, PlayerController* player,
-               LibraryImporter* importer, QWidget* parent = nullptr);
+               LibraryImporter* importer, LyricManager* lyrics, QWidget* parent = nullptr);
 
     // Refreshes the playlist view from the songs repo. Called after import
     // and on startup. Public so main() can call it after restoreLastSession.
@@ -49,9 +51,11 @@ private:
     PlaylistManager* playlists_;
     PlayerController* player_;
     LibraryImporter* importer_;
+    LyricManager* lyrics_;
 
     ControlBar* controlBar_ = nullptr;
     PlaylistWidget* playlistWidget_ = nullptr;
+    LyricWidget* lyricWidget_ = nullptr;
     CoverWidget* coverWidget_ = nullptr;
     QLabel* titleLabel_ = nullptr;
     QLabel* artistLabel_ = nullptr;

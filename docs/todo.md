@@ -126,14 +126,24 @@
 
 ## Phase 6: 歌词显示
 
-- [ ] 实现 `LyricParser` (解析 .lrc 文件, 提取时间标签和文本)
-- [ ] 实现 `LyricWidget` (滚动文本显示, 当前行高亮, 自动滚动)
-- [ ] 实现 `LyricManager` (加载/切换/手动选择歌词文件)
-- [ ] 实现歌词按钮打开文件选择对话框 (手动选择)
-- [ ] 在 `PlayerController` 中集成当前歌词行同步 (根据 position 查找)
-- [ ] 编写 `test_lyric_parser.cpp`
-- [ ] 准备 `testdata/sample.lrc` 测试歌词文件
-- [ ] 验证: 播放歌曲, 歌词逐行高亮滚动
+- [x] 实现 `LyricParser` (LRC: [mm:ss.fff]/[mm:ss.ff]/[mm:ss.f]/[mm:ss],
+      多时间戳同行, 元数据 [ti]/[ar]/[al]/[offset], CRLF/空行容错; 输出
+      按毫秒排序; 提供 `findCurrentLineIndex(ms)` 二分查找当前行)
+- [x] 实现 `LyricWidget` (QListWidget 居中绘制, 当前行加粗,
+      `scrollToItem(PositionAtCenter)` 自动滚动; "Load lyrics…" 按钮)
+- [x] 实现 `LyricManager` (QObject; `loadForSong` 读 song.lyricPath,
+      `loadFromPath` 手动文件, `updatePosition` 用秒位置驱动 currentLineChanged,
+      `clear` 释放)
+- [x] 实现歌词按钮打开文件选择对话框 (LyricWidget::onLoadClicked → QFileDialog,
+      `manualLyricsRequested` 信号交给 LyricManager.loadFromPath)
+- [x] 在 `PlayerController` 中集成当前歌词行同步 (MainWindow 把
+      PlayerController::positionChanged 接到 LyricManager::updatePosition,
+      currentSongChanged 触发 loadForSong)
+- [x] 编写 `test_lyric_parser.cpp` (18 个用例: 各种时间戳精度 / 多时间戳 /
+      offset 平移与下溢 clamp / 元数据捕获 / CRLF / 异常输入)
+- [x] 准备 `testdata/sample.lrc` 测试歌词文件
+- [x] 验证: 158/158 测试通过 (18 解析 + 6 manager + 5 widget);
+      MainWindow 用 QTabWidget 把歌词面板与 Library 列表并列, 自动滚动到中心
 
 ## Phase 7: 歌单 UI 和交互
 

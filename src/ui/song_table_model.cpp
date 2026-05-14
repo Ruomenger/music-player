@@ -30,8 +30,7 @@ int SongTableModel::columnCount(const QModelIndex& parent) const {
 }
 
 QVariant SongTableModel::data(const QModelIndex& index, int role) const {
-    if (!index.isValid() || index.row() < 0 ||
-        std::cmp_greater_equal(index.row(), songs_.size()))
+    if (!index.isValid() || index.row() < 0 || std::cmp_greater_equal(index.row(), songs_.size()))
         return {};
     const SongInfo& s = songs_[static_cast<std::size_t>(index.row())];
     if (role == Qt::DisplayRole) {
