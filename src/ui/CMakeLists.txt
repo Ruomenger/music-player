@@ -5,6 +5,7 @@ add_library(musicplayer_ui STATIC
     control_bar.cpp
     cover_widget.cpp
     settings_dialog.cpp
+    song_table_model.cpp
 )
 
 target_include_directories(musicplayer_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

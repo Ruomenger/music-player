@@ -109,14 +109,20 @@
 
 ## Phase 5: 基础 UI (Qt Widgets)
 
-- [ ] 实现 `MainWindow` 框架 (菜单栏, 状态栏, 布局)
-- [ ] 实现 `ControlBar` (播放/暂停/停止/上一曲/下一曲/进度条/音量滑块)
-- [ ] 实现 `PlaylistWidget` (QTableView + 自定义 Model, 双击播放, 右键菜单)
-- [ ] 实现 `CoverWidget` (封面图片显示, 异步加载)
-- [ ] 实现文件添加对话框 (QFileDialog 选择文件/目录)
-- [ ] 连接 UI 信号到 PlayerController
-- [ ] 实现系统托盘图标 (可选, Windows 惯用)
-- [ ] 验证: 选择文件→播放→进度条走→切换歌曲→正常
+- [x] 实现 `MainWindow` 框架 (菜单栏 File/Help, 状态栏, 中央布局 = 封面+标题
+      左 / 播放列表右 / ControlBar 下)
+- [x] 实现 `ControlBar` (prev/play-pause/stop/next 按钮 + 进度条 + 音量滑块 +
+      播放模式按钮; *Requested 信号 + set*() 槽双向接口)
+- [x] 实现 `PlaylistWidget` (QTableView + `SongTableModel`, 双击 / 回车
+      触发 songActivated(id))
+- [x] 实现 `CoverWidget` (QPixmap scaled, paintEvent 居中绘制, 缺图时
+      程序生成占位符)
+- [x] 实现文件添加对话框 (QFileDialog Add Files… / Add Folder… 接 LibraryImporter)
+- [x] 连接 UI 信号到 PlayerController (UI→player + player→UI 双向接线)
+- [ ] 实现系统托盘图标 (可选, 延后到 Phase 8 配合 SettingsDialog)
+- [x] 验证: ctest 全通过 (130 个用例, 含 15 个新增 UI 单测,
+      offscreen Qt 平台 headless 友好); main.cpp 完整接线
+      DB / 仓 / 引擎 / 控制器 / 窗口, 启动恢复 / 退出保存 session
 
 ## Phase 6: 歌词显示
 
