@@ -52,7 +52,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             ninja-build clang-21 clang-tidy-21 clang-format-21 \
-            qt6-base-dev libgtest-dev portaudio19-dev \
+            qt6-base-dev qt6-tools-dev qt6-l10n-tools \
+            libgtest-dev portaudio19-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
           sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-21 100
           pip install cmake==4.3.2
@@ -156,7 +157,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            ninja-build qt6-base-dev libgtest-dev portaudio19-dev \
+            ninja-build qt6-base-dev qt6-tools-dev qt6-l10n-tools \
+            libgtest-dev portaudio19-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev
           pip install cmake==4.3.2
       - name: Configure (ASan)
@@ -177,7 +179,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            ninja-build qt6-base-dev libgtest-dev portaudio19-dev \
+            ninja-build qt6-base-dev qt6-tools-dev qt6-l10n-tools \
+            libgtest-dev portaudio19-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev lcov
           pip install cmake==4.3.2
       - name: Configure (Coverage)
