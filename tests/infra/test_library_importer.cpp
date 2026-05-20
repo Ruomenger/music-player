@@ -76,8 +76,7 @@ protected:
         ASSERT_TRUE(db_->open(":memory:"));
         songs_ = std::make_unique<SqliteSongRepo>(connName_);
 
-        root_ = fs::temp_directory_path() /
-                ("musicplayer_importer_" + std::to_string(randomTag()));
+        root_ = fs::temp_directory_path() / ("musicplayer_importer_" + std::to_string(randomTag()));
         fs::remove_all(root_);
         fs::create_directories(root_);
         cacheDir_ = root_ / "covers";

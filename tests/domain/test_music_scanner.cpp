@@ -24,8 +24,7 @@ protected:
     void SetUp() override {
         // Each test gets its own subtree under a unique temp dir so we don't
         // race other tests that also use tmp_path.
-        root_ = fs::temp_directory_path() /
-                ("musicplayer_scanner_" + std::to_string(randomTag()));
+        root_ = fs::temp_directory_path() / ("musicplayer_scanner_" + std::to_string(randomTag()));
         fs::create_directories(root_);
     }
     void TearDown() override {

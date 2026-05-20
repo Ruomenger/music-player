@@ -35,8 +35,8 @@ std::uint64_t randomTag() {
 class CoverCacheTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        cacheDir_ = fs::temp_directory_path() /
-                    ("musicplayer_cover_" + std::to_string(randomTag()));
+        cacheDir_ =
+            fs::temp_directory_path() / ("musicplayer_cover_" + std::to_string(randomTag()));
         fs::remove_all(cacheDir_);
     }
     void TearDown() override {

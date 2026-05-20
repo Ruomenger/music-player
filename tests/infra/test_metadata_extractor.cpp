@@ -55,8 +55,7 @@ std::uint64_t randomTag() {
 class MetadataExtractorTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        root_ = fs::temp_directory_path() /
-                ("musicplayer_meta_" + std::to_string(randomTag()));
+        root_ = fs::temp_directory_path() / ("musicplayer_meta_" + std::to_string(randomTag()));
         fs::create_directories(root_);
     }
     void TearDown() override {
