@@ -124,21 +124,44 @@ jobs:
         with:
           arch: x64
 
-      - name: Install CMake (Windows)
+      - name: Install CMake and Ninja (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        run: pip install cmake==4.3.2
+        run: pip install cmake==4.3.2 ninja
+
+      - name: Export GitHub Actions cache env (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: Configure
         shell: bash
+        env:
+          VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
         run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            cmake --preset ${{ matrix.preset }} \
-              -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" \
-              -DVCPKG_TARGET_TRIPLET=x64-windows
-          else
-            cmake --preset ${{ matrix.preset }}
-          fi
+          configure() {
+            if [ "${{ runner.os }}" = "Windows" ]; then
+              cmake --preset ${{ matrix.preset }} \
+                -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+                -DVCPKG_TARGET_TRIPLET=x64-windows
+            else
+              cmake --preset ${{ matrix.preset }}
+            fi
+          }
+          for attempt in 1 2 3; do
+            if configure; then
+              exit 0
+            fi
+            echo "::warning::cmake configure failed (attempt ${attempt}/3)"
+            if [ "${attempt}" -lt 3 ]; then
+              sleep 30
+              rm -rf "build/${{ matrix.preset }}"
+            fi
+          done
+          exit 1
 
       - name: Build
         run: cmake --build --preset ${{ matrix.preset }}
