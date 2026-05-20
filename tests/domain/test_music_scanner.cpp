@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 #include "music_scanner.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <random>
 #include <set>
 #include <string>
 
@@ -11,18 +13,19 @@ using musicplayer::MusicScanner;
 
 namespace {
 
+// Per-process seeded RNG — see test_library_importer.cpp for the race story.
+std::uint64_t randomTag() {
+    static std::mt19937_64 rng{std::random_device{}()};
+    return rng();
+}
+
 class MusicScannerTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // Each test gets its own subtree under a unique temp dir so we don't
         // race other tests that also use tmp_path.
         root_ = fs::temp_directory_path() /
-                ("musicplayer_scanner_" +
-                 std::to_string(::testing::UnitTest::GetInstance()
-                                    ->current_test_info()
-                                    ->result()
-                                    ->elapsed_time()) +
-                 std::to_string(static_cast<int>(reinterpret_cast<std::uintptr_t>(this))));
+                ("musicplayer_scanner_" + std::to_string(randomTag()));
         fs::create_directories(root_);
     }
     void TearDown() override {

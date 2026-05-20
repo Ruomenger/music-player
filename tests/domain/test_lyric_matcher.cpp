@@ -1,20 +1,28 @@
 #include <gtest/gtest.h>
 #include "lyric_matcher.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <random>
+#include <string>
 
 namespace fs = std::filesystem;
 using musicplayer::LyricMatcher;
 
 namespace {
 
+// Per-process seeded RNG — see test_library_importer.cpp for the race story.
+std::uint64_t randomTag() {
+    static std::mt19937_64 rng{std::random_device{}()};
+    return rng();
+}
+
 class LyricMatcherTest : public ::testing::Test {
 protected:
     void SetUp() override {
         root_ = fs::temp_directory_path() /
-                ("musicplayer_lyric_" +
-                 std::to_string(static_cast<int>(reinterpret_cast<std::uintptr_t>(this))));
+                ("musicplayer_lyric_" + std::to_string(randomTag()));
         fs::create_directories(root_);
     }
     void TearDown() override {

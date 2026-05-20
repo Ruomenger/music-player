@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <random>
+#include <string>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -44,12 +46,17 @@ void writeSilentWav(const fs::path& path, double durationSec) {
     out.write(silence.data(), static_cast<std::streamsize>(silence.size()));
 }
 
+// Per-process seeded RNG — see test_library_importer.cpp for the race story.
+std::uint64_t randomTag() {
+    static std::mt19937_64 rng{std::random_device{}()};
+    return rng();
+}
+
 class MetadataExtractorTest : public ::testing::Test {
 protected:
     void SetUp() override {
         root_ = fs::temp_directory_path() /
-                ("musicplayer_meta_" +
-                 std::to_string(static_cast<int>(reinterpret_cast<std::uintptr_t>(this))));
+                ("musicplayer_meta_" + std::to_string(randomTag()));
         fs::create_directories(root_);
     }
     void TearDown() override {

@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <random>
 #include <string>
 #include <thread>
 #include <vector>
@@ -59,6 +60,14 @@ std::string uniqueConn(const char* base) {
     return std::string(base) + "_" + std::to_string(counter.fetch_add(1));
 }
 
+// Per-process seeded RNG. Truncating `this` to int (the previous scheme)
+// collided across CTest's parallel test processes, causing fixtures to
+// share /tmp dirs and race on filesystem ops.
+std::uint64_t randomTag() {
+    static std::mt19937_64 rng{std::random_device{}()};
+    return rng();
+}
+
 class LibraryImporterTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -68,8 +77,7 @@ protected:
         songs_ = std::make_unique<SqliteSongRepo>(connName_);
 
         root_ = fs::temp_directory_path() /
-                ("musicplayer_importer_" +
-                 std::to_string(static_cast<int>(reinterpret_cast<std::uintptr_t>(this))));
+                ("musicplayer_importer_" + std::to_string(randomTag()));
         fs::remove_all(root_);
         fs::create_directories(root_);
         cacheDir_ = root_ / "covers";
